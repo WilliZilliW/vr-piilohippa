@@ -2,7 +2,7 @@
 
 Selaimessa pelattava piilohippa VR-laseille: Android-puhelin laitetaan VR-kehikkoon ja peliä ohjataan Bluetooth-peliohjaimella (8BitDo NES30).
 
-**Pelaa:** https://williziliw.github.io/vr-piilohippa/
+**Pelaa:** https://willizilliw.github.io/vr-piilohippa/
 
 ## Pelaaminen
 
