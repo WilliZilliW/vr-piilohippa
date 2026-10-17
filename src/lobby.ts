@@ -7,7 +7,7 @@ import type { Player } from './player';
 import { bench, crate, plantPot } from './props';
 import type { GameScene, Role } from './scene';
 import type { Quality } from './settings';
-import { TextPanel } from './text';
+import { padLine, TextPanel } from './text';
 import { materials } from './textures';
 
 const ROOM = { minX: -7, maxX: 7, minZ: -9, maxZ: 5, height: 4.5 };
@@ -50,11 +50,11 @@ export class Lobby implements GameScene {
     const title = new TextPanel({ width: 3.4, height: 1.0, background: 'rgba(20,24,32,0.9)' }, [
       { text: 'PIILOHIPPA', size: 150, bold: true, color: '#ffd84a' },
     ]);
-    title.mesh.position.set(0, 2.75, ROOM.minZ + 0.02);
+    title.mesh.position.set(0, 3.05, ROOM.minZ + 0.02);
     this.scene.add(title.mesh);
 
-    this.info = new TextPanel({ width: 4.2, height: 1.4, background: 'rgba(20,24,32,0.85)' });
-    this.info.mesh.position.set(0, 1.5, ROOM.minZ + 0.02);
+    this.info = new TextPanel({ width: 4.2, height: 1.95, background: 'rgba(20,24,32,0.85)' });
+    this.info.mesh.position.set(0, 1.45, ROOM.minZ + 0.02);
     this.scene.add(this.info.mesh);
   }
 
@@ -187,8 +187,10 @@ export class Lobby implements GameScene {
     const pad = this.input.gamepadName;
     this.info.setText([
       { text: 'Valitse rooli: katso porttia ja paina A', size: 46, bold: true },
-      { text: 'tai kävele portista läpi', size: 40 },
-      { text: 'Start = asetukset  ·  Select = nollaa katsesuunta', size: 34, color: '#cfd6e0' },
+      padLine(['action'], 130),
+      { text: 'tai kävele portista läpi', size: 38 },
+      { text: 'Start = asetukset  ·  Select = nollaa katsesuunta', size: 32, color: '#cfd6e0' },
+      padLine(['menu', 'recenter'], 72),
       pad
         ? { text: `Ohjain: ${shortName(pad)}`, size: 34, color: '#7dffa8' }
         : { text: 'Ohjainta ei löydy – paina jotain ohjaimen nappia', size: 34, color: '#ffb35c' },

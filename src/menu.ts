@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Input } from './input';
 import { DIFFICULTY_LABELS, QUALITY_LABELS, type Difficulty, type Quality, type Settings } from './settings';
-import { TextPanel, type TextLine } from './text';
+import { padLine, TextPanel, type TextLine } from './text';
 
 interface Item {
   label: string;
@@ -33,7 +33,7 @@ export class Menu {
   private readonly items: Item[];
 
   constructor(camera: THREE.Camera, private readonly input: Input, private readonly s: Settings, private readonly vr: boolean, actions: MenuActions) {
-    this.panel = new TextPanel({ width: 1.25, height: 1.1, background: 'rgba(12,16,26,0.94)', overlay: true, pxPerMeter: 600 });
+    this.panel = new TextPanel({ width: 1.25, height: 1.28, background: 'rgba(12,16,26,0.94)', overlay: true, pxPerMeter: 600 });
     this.panel.mesh.position.set(0, 0, -1.4);
     this.panel.mesh.visible = false;
     camera.add(this.panel.mesh);
@@ -114,6 +114,7 @@ export class Menu {
       lines.push({ text: `${sel ? '▶ ' : ''}${it.label}${value}`, size: 40, bold: sel, color: sel ? '#ffffff' : '#9aa6b8' });
     });
     lines.push({ text: '↑↓ valitse · ←→ muuta · A valitse · B/Start sulje', size: 28, color: '#7d8798' });
+    lines.push(padLine(['up', 'down', 'left', 'right', 'action', 'run', 'menu'], 80));
     this.panel.setText(lines);
   }
 }

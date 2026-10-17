@@ -155,7 +155,7 @@ export class Traffic {
   }
 
   /** Kuinka lähellä edessä on este (toinen auto tai pelaaja). */
-  private clearance(car: Car, player: THREE.Vector3): number {
+  private clearance(car: Car, people: THREE.Vector3[]): number {
     let best = Infinity;
     const rightX = -car.fwd.z;
     const rightZ = car.fwd.x;
@@ -167,14 +167,14 @@ export class Traffic {
       if (along > 0 && along < 14 && lat < width) best = Math.min(best, along);
     };
     for (const o of this.cars) if (o !== car) check(o.pos.x, o.pos.z, 1.7);
-    if (player.y < 1.2) check(player.x, player.z, 1.6);
+    for (const p of people) if (p.y < 1.2) check(p.x, p.z, 1.6);
     return best;
   }
 
-  update(dt: number, player: THREE.Vector3): void {
+  update(dt: number, people: THREE.Vector3[]): void {
     for (const car of this.cars) {
       let target = CRUISE;
-      const gap = this.clearance(car, player);
+      const gap = this.clearance(car, people);
       if (gap < 14) target = Math.min(target, Math.max(0, (gap - 5.5) * 1.4));
 
       if (car.phase === 'road') {

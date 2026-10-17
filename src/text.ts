@@ -1,11 +1,20 @@
 import * as THREE from 'three';
+import type { Button } from './input';
+import { drawPad } from './padhint';
 
 export interface TextLine {
   text: string;
-  /** Fonttikoko pikseleinä tekstuurissa. */
+  /** Fonttikoko pikseleinä tekstuurissa (ohjainkuvalla kuvan korkeus). */
   size?: number;
   color?: string;
   bold?: boolean;
+  /** Piirrä tekstin sijaan NES30-ohjaimen kuva, jossa nämä napit on korostettu. */
+  pad?: Button[];
+}
+
+/** Rivi, joka näyttää ohjaimen kuvan ja korostaa painettavat napit. */
+export function padLine(buttons: Button[], size = 120): TextLine {
+  return { text: '', pad: buttons, size };
 }
 
 export interface PanelOptions {
@@ -70,6 +79,11 @@ export class TextPanel {
     ctx.textBaseline = 'top';
     lines.forEach((line, i) => {
       const size = sizes[i];
+      if (line.pad) {
+        drawPad(ctx, canvas.width / 2, y, size, line.pad);
+        y += size * (1 + gap);
+        return;
+      }
       ctx.font = `${line.bold ? '700' : '500'} ${size}px system-ui, sans-serif`;
       ctx.fillStyle = line.color ?? '#ffffff';
       ctx.fillText(line.text, canvas.width / 2, y, canvas.width * 0.94);

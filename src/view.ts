@@ -82,6 +82,11 @@ export class View {
     this.fadeTarget = 0;
   }
 
+  /** Himmennys osittain (esim. etsijä laskee silmät kiinni). */
+  fadeTo(opacity: number): void {
+    this.fadeTarget = opacity;
+  }
+
   get fadeDone(): boolean {
     return Math.abs(this.fade.material.opacity - this.fadeTarget) < 0.01;
   }

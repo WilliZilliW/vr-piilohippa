@@ -6,10 +6,13 @@ import type { Player } from './player';
 import {
   bench, bush, CAR_COLORS, crate, dumpster, hedge, ladder, parkedCar, sign, spruce, streetLight, tree,
 } from './props';
+import { NavGrid } from './nav';
+import { Round, type RoundContext } from './round';
 import type { GameScene, Role } from './scene';
 import type { Quality } from './settings';
 import { materials, rng } from './textures';
 import { Traffic } from './traffic';
+import { Vision, type BushInfo, type LadderInfo, type Spot } from './vision';
 
 /**
  * Kaupunki: 3 x 3 korttelia katujen välissä.
@@ -46,12 +49,21 @@ export class Town implements GameScene {
   readonly world = new World();
   readonly spawn: { x: number; y: number; z: number; yaw: number };
 
+  readonly bushes: BushInfo[] = [];
+  readonly ladders: LadderInfo[] = [];
+  readonly spots: Spot[] = [];
+  readonly nav: NavGrid;
+  readonly vision: Vision;
+  readonly traffic: Traffic;
+  /** Pesä: puiston iso puu. */
+  readonly base = new THREE.Vector3(0, B, 0);
+  readonly round: Round;
+
   private readonly outdoor: Outdoor;
-  private readonly traffic: Traffic;
   private readonly b = new Batcher();
   private readonly r = rng(2024);
 
-  constructor(renderer: THREE.WebGLRenderer, readonly role: Role) {
+  constructor(renderer: THREE.WebGLRenderer, readonly role: Role, ctx: RoundContext) {
     this.outdoor = new Outdoor(this.scene, renderer);
     this.spawn = role === 'seeker' ? { x: 0, y: B, z: 2.2, yaw: 0 } : { x: 0, y: B, z: 3.2, yaw: Math.PI };
 
@@ -70,12 +82,81 @@ export class Town implements GameScene {
     const m = materials();
     this.b.build(this.scene, { noShadow: [m.asphalt, m.grass, m.pavers, m.gravel, m.white] });
 
+    this.resolveLadderRoofs();
+    this.nav = new NavGrid(this.world, 80);
+    this.vision = new Vision(this.world, this.bushes);
+    this.makeSpots();
+
     this.traffic = new Traffic(this.scene, this.world, ROAD_LINES, TOWN_EDGE);
+    this.round = new Round(ctx, this, role);
   }
 
+
   update(dt: number, player: Player): void {
-    this.traffic.update(dt, player.pos);
+    this.round.update(dt);
+    this.traffic.update(dt, this.round.actorPositions());
     this.outdoor.follow(player.pos);
+  }
+
+  // ---------- Tekoälyn tarvitsemat tiedot ----------
+
+  private bushAt(x: number, y: number, z: number, seed: number, size = 1): void {
+    bush(this.b, x, y, z, seed, size);
+    this.bushes.push({ x, y, z, r: size });
+  }
+
+  private ladderAt(x: number, y: number, z: number, nx: number, nz: number, top: number): void {
+    ladder(this.b, this.world, x, y, z, nx, nz, top);
+    this.ladders.push({ x, z, nx, nz, top, base: new THREE.Vector3(x + nx * 0.45, y, z + nz * 0.45), roof: null });
+  }
+
+  /** Selvitetään, minkä rakennuksen katolle kukin tikas vie. */
+  private resolveLadderRoofs(): void {
+    for (const l of this.ladders) {
+      const px = l.x - l.nx * 0.3;
+      const pz = l.z - l.nz * 0.3;
+      const boxes = this.world.query(px, px, pz, pz);
+      const roof = boxes.find((b) => Math.abs(b.max.y - l.top) < 0.05);
+      if (roof) l.roof = { minX: roof.min.x, maxX: roof.max.x, minZ: roof.min.z, maxZ: roof.max.z };
+    }
+  }
+
+  /** Piilopaikat: pensaat, seinien ja aitojen vierustat sekä katot. */
+  private makeSpots(): void {
+    for (const b of this.bushes) {
+      if (Math.abs(b.x) < 75 && Math.abs(b.z) < 75) this.spots.push({ pos: new THREE.Vector3(b.x, b.y, b.z), kind: 'bush' });
+    }
+    const nav = this.nav;
+    const N = nav.size;
+    for (let iz = 1; iz < N - 1; iz += 3) {
+      for (let ix = 1; ix < N - 1; ix += 3) {
+        const i = iz * N + ix;
+        if (nav.cost[i] !== 1) continue; // ei ajoradalle
+        const c = nav.center(i);
+        if (Math.abs(c.x) > 74 || Math.abs(c.z) > 74 || c.distanceTo(this.base) < 10) continue;
+        let blockedNear = 0;
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (nav.cost[i + dz * N + dx] === 0) blockedNear++;
+        if (blockedNear >= 2) this.spots.push({ pos: c, kind: 'wall' });
+      }
+    }
+    for (const l of this.ladders) {
+      if (!l.roof) continue;
+      // Piilopaikka katon reunan tuntumassa, muutaman metrin päässä tikkaista.
+      const roof = l.roof;
+      const inX = -l.nx;
+      const inZ = -l.nz;
+      const candidates = [3, -3, 5, -5, 0].map((along) => new THREE.Vector3(
+        l.x + inX * 2.5 + -inZ * along, l.top, l.z + inZ * 2.5 + inX * along,
+      ));
+      for (const p of candidates) {
+        if (p.x < roof.minX + 1 || p.x > roof.maxX - 1 || p.z < roof.minZ + 1 || p.z > roof.maxZ - 1) continue;
+        const blocked = this.world.query(p.x - 0.6, p.x + 0.6, p.z - 0.6, p.z + 0.6).some((b) => b.max.y > l.top + 0.45 && b.min.y < l.top + 1.7);
+        if (!blocked) {
+          this.spots.push({ pos: p, kind: 'roof', ladder: l });
+          break;
+        }
+      }
+    }
   }
 
   applyQuality(q: Quality): void {
@@ -84,6 +165,7 @@ export class Town implements GameScene {
 
   dispose(): void {
     this.outdoor.dispose();
+    this.round.dispose();
   }
 
   private rand(min: number, max: number): number {
@@ -233,18 +315,18 @@ export class Town implements GameScene {
       b.add(boxGeo(0.6, 1.2, 0.6, 1), m.brick, at(hx - sx * 1.5, B + h + 0.6, hz));
       this.world.addBox(hx - sx * 1.5, B + h, hz, 0.6, 1.2, 0.6);
       // Tikkaat talon sisäpihan puolelle
-      ladder(b, this.world, hx - sx * (w / 2), B, hz, -sx, 0, B + h);
+      this.ladderAt(hx - sx * (w / 2), B, hz, -sx, 0, B + h);
 
       // Varasto ja sen vieressä halkopino (sen avulla pääsee varaston katolle)
-      const shx = lx - sx * 5.5;
-      const shz = lz - sz * 6;
+      const shx = lx - sx * 6;
+      const shz = lz - sz * 6.5;
       this.building({ x: shx, z: shz, w: 3, d: 4.5, h: 2.7, wall: m.fence, bay: [2, 2.7], roofDetails: false });
       const wpX = shx - sx * 2.1;
       b.add(boxGeo(0.8, 1.0, 1.6, 0.5), m.wood, at(wpX, B + 0.5, shz));
       this.world.addBox(wpX, B, shz, 0.8, 1.0, 1.6);
 
       // Auto pihatiellä
-      if (this.r() < 0.75) parkedCar(b, this.world, lx - sx * 6.5, B, lz + sz * 5.5, false, this.pick(CAR_COLORS), sz < 0);
+      if (this.r() < 0.75) parkedCar(b, this.world, lx - sx * 7.2, B, lz + sz * 5.5, false, this.pick(CAR_COLORS), sz < 0);
 
       // Pensasaidat kadun puolella, aukot pihatielle ja portille
       const ez = lz + sz * 8.4;
@@ -257,7 +339,7 @@ export class Town implements GameScene {
       tree(b, this.world, lx - sx * 1.5, lz - sz * 6.5, Math.floor(this.r() * 100), this.rand(0.9, 1.3));
       if (this.r() < 0.6) spruce(b, this.world, lx + sx * 6.5, lz - sz * 6.5, this.rand(0.8, 1.1));
       for (let i = 0; i < 3; i++) {
-        bush(b, hx + this.rand(-w / 2, w / 2), B, hz - sz * 5.3, Math.floor(this.r() * 100), this.rand(0.7, 1.1));
+        this.bushAt(hx + this.rand(-w / 2, w / 2), B, hz - sz * 5.3, Math.floor(this.r() * 100), this.rand(0.7, 1.1));
       }
       if (this.r() < 0.5) crate(b, this.world, lx - sx * 2, B, lz - sz * 8, 0.9);
     }
@@ -308,8 +390,8 @@ export class Town implements GameScene {
     }
     this.world.addBox(cx - 6, B + 2.9, cz - 1.9, 4, 0.2, 2.2);
 
-    ladder(b, this.world, cx - 15, B, cz - 9, -1, 0, B + 9);
-    ladder(b, this.world, cx + 17, B, cz + 7, 1, 0, B + 6);
+    this.ladderAt(cx - 15, B, cz - 9, -1, 0, B + 9);
+    this.ladderAt(cx + 17, B, cz + 7, 1, 0, B + 6);
 
     // Koripallokori
     b.add(new THREE.CylinderGeometry(0.08, 0.08, 3.05, 8), m.metal, at(cx - 10, B + 1.5, cz + 15));
@@ -330,7 +412,7 @@ export class Town implements GameScene {
     this.climbingFrame(cx - 9, cz + 9);
     for (let i = 0; i < 3; i++) bench(b, this.world, cx - 14 + i * 4, B, cz - 1.5, 0);
     for (const tx of [-16, -4, 3]) tree(b, this.world, cx + tx, cz + 16.5, Math.floor(this.r() * 100), 1.1);
-    for (let i = 0; i < 5; i++) bush(b, cx + this.rand(-16, 4), B, cz - 2.4, Math.floor(this.r() * 100), 0.7);
+    for (let i = 0; i < 5; i++) this.bushAt(cx + this.rand(-16, 4), B, cz - 2.4, Math.floor(this.r() * 100), 0.7);
   }
 
   private climbingFrame(x: number, z: number): void {
@@ -379,7 +461,7 @@ export class Town implements GameScene {
       this.world.addBox(x + f * 8.1, B + 3.56, z, 1.2, 0.08, 10);
 
       // Takapihalla tikkaat ja roskakatos
-      ladder(b, this.world, x - f * 7.5, B, z + 3, -f, 0, B + h);
+      this.ladderAt(x - f * 7.5, B, z + 3, -f, 0, B + h);
       dumpster(b, this.world, x - f * 8.4, B, z - 3, false, i % 2 ? 0x2e5d3a : 0x3b4f6b);
     });
 
@@ -392,7 +474,7 @@ export class Town implements GameScene {
         if (this.r() < 0.6) parkedCar(b, this.world, rowX, B, z, true, this.pick(CAR_COLORS), this.r() < 0.5);
       }
     }
-    for (let i = 0; i < 4; i++) bush(b, cx - f * 9.5, B, cz - 15 + i * 10, Math.floor(this.r() * 100), 0.8);
+    for (let i = 0; i < 4; i++) this.bushAt(cx - f * 9.5, B, cz - 15 + i * 10, Math.floor(this.r() * 100), 0.8);
   }
 
   // ---------- Puisto ja pesä ----------
@@ -434,7 +516,7 @@ export class Town implements GameScene {
     for (let i = 0; i < 18; i++) {
       const qx = this.r() < 0.5 ? -1 : 1;
       const qz = this.r() < 0.5 ? -1 : 1;
-      bush(b, cx + qx * this.rand(3.5, 16), B, cz + qz * this.rand(3.5, 16), i * 7, this.rand(0.8, 1.3));
+      this.bushAt(cx + qx * this.rand(3.5, 16), B, cz + qz * this.rand(3.5, 16), i * 7, this.rand(0.8, 1.3));
     }
   }
 
@@ -446,8 +528,8 @@ export class Town implements GameScene {
     this.surface(cx, cz, HALF_INNER * 2, HALF_INNER * 2, m.grass);
     this.building({ x: cx, z: cz - 10, w: 27, d: 12, h: 12, wall: m.apartment[0] });
     this.building({ x: cx, z: cz + 10, w: 27, d: 12, h: 12, wall: m.apartment[1] });
-    ladder(b, this.world, cx - 13.5, B, cz - 10, -1, 0, B + 12);
-    ladder(b, this.world, cx + 13.5, B, cz + 10, 1, 0, B + 12);
+    this.ladderAt(cx - 13.5, B, cz - 10, -1, 0, B + 12);
+    this.ladderAt(cx + 13.5, B, cz + 10, 1, 0, B + 12);
 
     // Sisäpiha: leikkipaikka ja pyöräkatos
     this.surface(cx, cz, 27, 8, m.gravel, B + 0.004);
@@ -468,7 +550,7 @@ export class Town implements GameScene {
       }
     }
     for (const [x, z] of [[-11, 2.5], [11, -2.5]]) tree(b, this.world, cx + x, cz + z, Math.floor(this.r() * 100), 1);
-    for (let i = 0; i < 6; i++) bush(b, cx + this.rand(-12, 12), B, cz + (i % 2 ? 3.4 : -3.4), i * 13, 0.7);
+    for (let i = 0; i < 6; i++) this.bushAt(cx + this.rand(-12, 12), B, cz + (i % 2 ? 3.4 : -3.4), i * 13, 0.7);
   }
 
   // ---------- Metsä kaupungin ympärillä ----------

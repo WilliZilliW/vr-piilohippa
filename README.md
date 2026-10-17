@@ -22,6 +22,15 @@ Selaimessa pelattava piilohippa VR-laseille: Android-puhelin laitetaan VR-kehikk
 | Select | Nollaa katsesuunta |
 | Start | Asetukset |
 
+Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, jossa painettava nappi on korostettu keltaisella.
+
+## Pelin kulku
+
+- **Etsijänä** lasket ensin 20 sekuntia silmät kiinni, kun neljä tietokoneen piiloutujaa juoksee piiloon. Sitten etsit: katso piiloutujaa läheltä ja paina A. Löydä kaikki 4 minuutissa.
+- **Piiloutujana** juokset piiloon, kun tietokoneen etsijä laskee pesäpuulla. Etsijä näkee, kuulee juoksun ja osaa kiivetä tikkaita katoille. Selviä 4 minuuttia jäämättä kiinni.
+- Pensaissa ja kyykyssä on vaikeampi huomata. Tietokoneen piiloutujat pakenevat, jos etsijä tulee liian lähelle.
+- Vaikeustaso (asetukset) vaikuttaa etsijän näköön, reaktioaikaan ja nopeuteen.
+
 Tikkaita pitkin kiivetään ristiohjaimen ylänuolella. Katoille pääsee tikkailla, ja matalille reunoille (aidat, autot, laatikot, katokset) Y-napilla.
 
 ## Kehitys

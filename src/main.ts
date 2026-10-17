@@ -6,7 +6,7 @@ import { Menu } from './menu';
 import { Player } from './player';
 import type { GameScene, Role } from './scene';
 import { loadSettings, saveSettings } from './settings';
-import { TextPanel, type TextLine } from './text';
+import { Hud } from './hud';
 import { Town } from './town';
 import { View } from './view';
 
@@ -42,17 +42,7 @@ function start(vr: boolean): void {
   const head = new HeadTracker(vr ? 'sensor' : 'mouse', view.renderer.domElement);
   const player = new Player(view, head, input);
 
-  // Ilmoitukset katseen edessä
-  const hud = new TextPanel({ width: 1.3, height: 0.42, overlay: true, pxPerMeter: 500 });
-  hud.mesh.position.set(0, -0.25, -1.5);
-  hud.mesh.visible = false;
-  view.camera.add(hud.mesh);
-  let hudTimer = 0;
-  const showHud = (lines: TextLine[], seconds: number) => {
-    hud.setText(lines);
-    hud.mesh.visible = true;
-    hudTimer = seconds;
-  };
+  const hud = new Hud(view.camera);
 
   let current: GameScene;
   let pending: (() => GameScene) | null = null;
@@ -91,13 +81,7 @@ function start(vr: boolean): void {
   const makeTown = (role: Role): GameScene => {
     inLevel = true;
     view.setReticleVisible(false);
-    const town = new Town(view.renderer, role);
-    showHud([
-      { text: role === 'seeker' ? 'Olet ETSIJÄ' : 'Olet PIILOUTUJA', size: 80, bold: true, color: role === 'seeker' ? '#ff8a5c' : '#7dffa8' },
-      { text: 'Tikkailla ja Y-napilla pääset katoille', size: 36 },
-      { text: 'Tietokoneen pelaajat tulevat seuraavaksi', size: 30, color: '#b8c2d0' },
-    ], 7);
-    return town;
+    return new Town(view.renderer, role, { view, input, settings, hud, player, exit: () => goTo(makeLobby) });
   };
 
   const menu = new Menu(view.camera, input, settings, vr, {
@@ -113,7 +97,7 @@ function start(vr: boolean): void {
   if (vr) {
     setTimeout(() => {
       if (!head.hasSensor) {
-        showHud([
+        hud.show([
           { text: 'Asentoanturi ei vastaa', size: 60, bold: true, color: '#ffb35c' },
           { text: 'Avaa peli HTTPS-osoitteesta Chromella', size: 36 },
         ], 8);
@@ -135,12 +119,9 @@ function start(vr: boolean): void {
 
     const menuOpen = menu.update();
     player.update(dt, current.world, settings, !menuOpen && !pending);
-    current.update(dt, player);
-
-    if (hudTimer > 0) {
-      hudTimer -= dt;
-      if (hudTimer <= 0) hud.mesh.visible = false;
-    }
+    // Valikon ollessa auki peli on tauolla.
+    if (!menuOpen) current.update(dt, player);
+    hud.update(dt);
 
     view.render(current.scene, dt);
   };
@@ -149,5 +130,5 @@ function start(vr: boolean): void {
     frame(Math.min(timer.getDelta(), 0.05));
   });
   // Kehitystilassa testit voivat ajaa pelin ruutu kerrallaan.
-  if (import.meta.env.DEV) (window as unknown as { __game: unknown }).__game = { player, view, input, frame };
+  if (import.meta.env.DEV) (window as unknown as { __game: unknown }).__game = { player, view, input, frame, current: () => current };
 }
