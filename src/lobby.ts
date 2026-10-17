@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sfx } from './audio';
 import { at, Batcher, boxGeo, floorGeo, wallGeo } from './batch';
 import { indoorEnvironment } from './environment';
 import type { Input } from './input';
@@ -34,6 +35,7 @@ export class Lobby implements GameScene {
   private prevZ = this.spawn.z;
   private time = 0;
   private chosen = false;
+  private lastLooked: Gate | undefined;
 
   constructor(
     renderer: THREE.WebGLRenderer,
@@ -200,6 +202,8 @@ export class Lobby implements GameScene {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const hits = this.raycaster.intersectObjects(this.gates.map((g) => g.portal), false);
     const looked = hits.length && hits[0].distance < 12 ? this.gates.find((g) => g.portal === hits[0].object) : undefined;
+    if (looked && looked !== this.lastLooked) sfx.gateHover();
+    this.lastLooked = looked;
 
     for (const g of this.gates) {
       const active = g === looked;
@@ -224,6 +228,7 @@ export class Lobby implements GameScene {
 
   private choose(role: Role): void {
     this.chosen = true;
+    sfx.gateEnter(role === 'seeker');
     this.onChoose(role);
   }
 

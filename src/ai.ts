@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MotionSounds, type StepKind } from './audio';
 import { Body, emptyCommand } from './body';
 import { Character, type Outfit } from './character';
 import type { NavGrid } from './nav';
@@ -55,7 +56,10 @@ export class Agent implements Actor {
   private readonly _eye = new THREE.Vector3();
   private readonly _facing = new THREE.Vector3();
 
-  constructor(readonly name: string, outfit: Outfit, ai: AiWorld, scene: THREE.Scene) {
+  private readonly sounds: MotionSounds;
+
+  constructor(readonly name: string, outfit: Outfit, ai: AiWorld, scene: THREE.Scene, kind: StepKind) {
+    this.sounds = new MotionSounds(kind);
     this.char = new Character(outfit);
     this.nav = new Navigator(ai);
     scene.add(this.char.root);
@@ -88,6 +92,7 @@ export class Agent implements Actor {
   update(dt: number, world: World): void {
     this.nav.steer(this, dt);
     this.body.step(dt, world, this.cmd);
+    this.sounds.update(dt, this.body);
     this.cmd.jump = false;
     this.yaw += wrap(this.wantYaw - this.yaw) * (1 - Math.exp(-8 * dt));
     this.char.root.position.copy(this.body.pos);

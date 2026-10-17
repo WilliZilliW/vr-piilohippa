@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sfx } from './audio';
 import { HeadTracker } from './head';
 import { Input } from './input';
 import { Lobby } from './lobby';
@@ -34,6 +35,7 @@ async function enterVrMode(): Promise<void> {
 
 function start(vr: boolean): void {
   startScreen.style.display = 'none';
+  sfx.init();
   if (vr) void enterVrMode();
 
   const settings = loadSettings(vr);
@@ -50,6 +52,7 @@ function start(vr: boolean): void {
 
   const applySettings = () => {
     view.applySettings(settings);
+    sfx.setVolume(settings.volume / 100);
     current?.applyQuality(settings.quality);
     saveSettings(vr, settings);
   };
@@ -74,12 +77,14 @@ function start(vr: boolean): void {
 
   const makeLobby = (): GameScene => {
     inLevel = false;
+    sfx.setOutdoor(false);
     view.setReticleVisible(true);
     return new Lobby(view.renderer, view.camera, input, (role) => goTo(() => makeTown(role)));
   };
 
   const makeTown = (role: Role): GameScene => {
     inLevel = true;
+    sfx.setOutdoor(true);
     view.setReticleVisible(false);
     return new Town(view.renderer, role, { view, input, settings, hud, player, exit: () => goTo(makeLobby) });
   };
@@ -123,6 +128,7 @@ function start(vr: boolean): void {
     if (!menuOpen) current.update(dt, player);
     hud.update(dt);
 
+    sfx.updateListener(view.camera, dt);
     view.render(current.scene, dt);
   };
   view.renderer.setAnimationLoop((t) => {

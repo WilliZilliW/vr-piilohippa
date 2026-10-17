@@ -12,6 +12,8 @@ export interface Settings {
   /** Liikkumisnopeus prosentteina. */
   moveSpeed: number;
   difficulty: Difficulty;
+  /** Äänenvoimakkuus prosentteina. */
+  volume: number;
 }
 
 const STORAGE_KEY = 'piilohippa.settings.v1';
@@ -24,6 +26,7 @@ export function defaultSettings(vr: boolean): Settings {
     turnAngle: 30,
     moveSpeed: 100,
     difficulty: 'normal',
+    volume: 80,
   };
 }
 

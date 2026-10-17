@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MotionSounds } from './audio';
 import { Body, emptyCommand } from './body';
 import type { HeadTracker } from './head';
 import type { Input } from './input';
@@ -18,6 +19,7 @@ export class Player {
 
   private eye = 1.63;
   private readonly cmd = emptyCommand();
+  private readonly sounds = new MotionSounds('player');
   private readonly fwd = new THREE.Vector3();
   private readonly right = new THREE.Vector3();
 
@@ -79,6 +81,7 @@ export class Player {
     c.facingZ = this.fwd.z;
     c.speedScale = s.moveSpeed / 100;
     this.body.step(dt, world, c);
+    this.sounds.update(dt, this.body);
     this.syncRig(dt);
   }
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sfx, type EngineVoice } from './audio';
 import type { World } from './physics';
 import { CAR_COLORS, carGeometry } from './props';
 import { materials, rng } from './textures';
@@ -36,6 +37,10 @@ interface Car {
   nextDir: THREE.Vector2 | null;
   pos: THREE.Vector3;
   fwd: THREE.Vector3;
+  engine: EngineVoice | null;
+  /** Kuinka kauan ihminen on seissyt edessä (tööttäystä varten). */
+  blockedT: number;
+  hornCooldown: number;
 }
 
 export class Traffic {
@@ -76,9 +81,11 @@ export class Traffic {
         mesh, box: new THREE.Box3(), from, to, dir, phase: 'road',
         s: STOP + this.r() * 15, speed: CRUISE, curve: null, curveLen: 0, next: null, nextDir: null,
         pos: new THREE.Vector3(), fwd: new THREE.Vector3(),
+        engine: sfx.engine(), blockedT: 0, hornCooldown: 0,
       };
       this.cars.push(car);
       this.place(car);
+      car.engine?.update(car.pos, car.speed);
     }
     world.dynamic = this.cars.map((c) => c.box);
   }
@@ -155,8 +162,11 @@ export class Traffic {
   }
 
   /** Kuinka lähellä edessä on este (toinen auto tai pelaaja). */
+  private personAhead = false;
+
   private clearance(car: Car, people: THREE.Vector3[]): number {
     let best = Infinity;
+    this.personAhead = false;
     const rightX = -car.fwd.z;
     const rightZ = car.fwd.x;
     const check = (x: number, z: number, width: number) => {
@@ -167,7 +177,9 @@ export class Traffic {
       if (along > 0 && along < 14 && lat < width) best = Math.min(best, along);
     };
     for (const o of this.cars) if (o !== car) check(o.pos.x, o.pos.z, 1.7);
+    const carBest = best;
     for (const p of people) if (p.y < 1.2) check(p.x, p.z, 1.6);
+    this.personAhead = best < carBest && best < 10;
     return best;
   }
 
@@ -176,6 +188,13 @@ export class Traffic {
       let target = CRUISE;
       const gap = this.clearance(car, people);
       if (gap < 14) target = Math.min(target, Math.max(0, (gap - 5.5) * 1.4));
+      // Jos joku seisoo auton edessä, auto tööttää.
+      car.hornCooldown -= dt;
+      car.blockedT = this.personAhead ? car.blockedT + dt : 0;
+      if (car.blockedT > 1.2 && car.hornCooldown <= 0) {
+        sfx.horn(car.pos);
+        car.hornCooldown = 4;
+      }
 
       if (car.phase === 'road') {
         const len = this.segmentLength(car) - STOP;
@@ -215,6 +234,11 @@ export class Traffic {
       if (car.speed < 0.05 && target === 0) car.speed = 0;
       car.s += car.speed * dt;
       this.place(car);
+      car.engine?.update(car.pos, car.speed);
     }
+  }
+
+  dispose(): void {
+    for (const c of this.cars) c.engine?.stop();
   }
 }

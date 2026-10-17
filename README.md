@@ -31,6 +31,27 @@ Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, joss
 - Pensaissa ja kyykyssä on vaikeampi huomata. Tietokoneen piiloutujat pakenevat, jos etsijä tulee liian lähelle.
 - Vaikeustaso (asetukset) vaikuttaa etsijän näköön, reaktioaikaan ja nopeuteen.
 
+## Äänet
+
+Käytä kuulokkeita: hahmojen ja autojen äänet ovat 3D-ääniä, joten kuulet, mistä suunnasta ne tulevat. Äänenvoimakkuuden voi säätää asetuksista.
+
+| Ääni | Mitä tarkoittaa |
+|---|---|
+| Raskaat, matalat askeleet | Etsijä on lähellä |
+| Kevyet, terävät askeleet | Piiloutuja liikkuu |
+| Nouseva "hm?" | Etsijä kuuli jotain ja tulee katsomaan |
+| Kaksisävyinen hälytys | Etsijä näki sinut – juokse! |
+| Piippaukset (viimeiset kolme korkeampia) | Laskenta |
+| Torvisointu | Etsintä alkaa |
+| Tik-tak | 30 sekuntia jäljellä |
+| Nouseva fanfaari | Löysit piiloutujan |
+| Kaksi laskevaa nuottia | Etsijä sai jonkun muun kiinni |
+| Laskeva "vaa-vaa" | Jäit kiinni |
+| Metallinen kilahdus | Tikkaat |
+| Tööttäys | Seisot auton edessä |
+
+Kyykyssä liikut äänettömästi; juokseminen kuuluu etsijälle.
+
 Tikkaita pitkin kiivetään ristiohjaimen ylänuolella. Katoille pääsee tikkailla, ja matalille reunoille (aidat, autot, laatikot, katokset) Y-napilla.
 
 ## Kehitys

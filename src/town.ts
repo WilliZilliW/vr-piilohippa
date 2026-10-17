@@ -166,6 +166,7 @@ export class Town implements GameScene {
   dispose(): void {
     this.outdoor.dispose();
     this.round.dispose();
+    this.traffic.dispose();
   }
 
   private rand(min: number, max: number): number {

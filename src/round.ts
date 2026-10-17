@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Agent, HiderBrain, SEEKER_PARAMS, SeekerBrain, type Actor, type AiWorld, type SeekerView } from './ai';
 import type { Outfit } from './character';
+import { sfx } from './audio';
 import type { Hud } from './hud';
 import { padLine } from './text';
 import type { Input } from './input';
@@ -79,6 +80,8 @@ export class Round {
   private readonly seeker: SeekerBrain | null = null;
   private readonly me: PlayerActor;
   private readonly positions: THREE.Vector3[] = [];
+  private lastSec = 0;
+  private wasChased = false;
 
   constructor(private readonly ctx: RoundContext, private readonly town: Town, private readonly role: Role) {
     this.ai = {
@@ -91,7 +94,7 @@ export class Round {
     const jail = (i: number) => new THREE.Vector3(base.x + Math.sin(i * 1.3 + 2) * 4.6, base.y, base.z + Math.cos(i * 1.3 + 2) * 4.6);
 
     if (role === 'hider') {
-      const agent = new Agent('Etsijä', SEEKER_OUTFIT, this.ai, town.scene);
+      const agent = new Agent('Etsijä', SEEKER_OUTFIT, this.ai, town.scene, 'seeker');
       agent.place(base.x, base.y, base.z + 1.8, 0);
       this.agents.push(agent);
       const params = SEEKER_PARAMS[ctx.settings.difficulty];
@@ -99,7 +102,7 @@ export class Round {
     }
 
     for (let i = 0; i < hiderCount; i++) {
-      const agent = new Agent(NAMES[i], hiderOutfit(i), this.ai, town.scene);
+      const agent = new Agent(NAMES[i], hiderOutfit(i), this.ai, town.scene, 'hider');
       const a = Math.PI / 4 + (i / hiderCount) * Math.PI * 2;
       agent.place(base.x + Math.sin(a) * 2.6, base.y, base.z + Math.cos(a) * 2.6, a);
       this.agents.push(agent);
@@ -137,6 +140,11 @@ export class Round {
 
     if (this.phase === 'count') {
       this.t -= dt;
+      const sec = Math.ceil(this.t);
+      if (sec !== this.lastSec && sec > 0) {
+        this.lastSec = sec;
+        sfx.countBeep(sec <= 3);
+      }
       if (this.role === 'seeker') {
         this.ctx.view.fadeTo(0.94);
         hud.show([
@@ -149,7 +157,9 @@ export class Round {
       }
       if (this.t <= 0) this.startSeeking();
     } else if (this.phase === 'seek') {
+      const before = this.t;
       this.t -= dt;
+      if (before > 30 && this.t <= 30) sfx.timeWarning();
       this.updateStatus();
       if (this.role === 'seeker' && input.justPressed('action')) this.tryCatch();
       if (this.t <= 0) this.end('timeout');
@@ -159,7 +169,16 @@ export class Round {
 
     // Tekoäly
     const targets: Actor[] = [...this.hiders.map((h) => h.agent), ...(this.role === 'hider' ? [this.me] : [])];
+    const prevState = this.seeker?.state;
     this.seeker?.update(dt, targets);
+    if (this.seeker) {
+      // Etsijä kuuli jotain tai menettää kohteen: "hm?" sen suunnalta.
+      if (this.seeker.state === 'investigate' && prevState !== 'investigate') sfx.heard(this.seeker.eye);
+      // Etsijä huomasi pelaajan: hälytys.
+      const chasingMe = this.seeker.chasing === this.me;
+      if (chasingMe && !this.wasChased) sfx.spotted();
+      this.wasChased = chasingMe;
+    }
     const sv = this.seekerView;
     for (const h of this.hiders) h.update(dt, sv, counting);
     for (const a of this.agents) a.update(dt, this.ai.world);
@@ -176,6 +195,7 @@ export class Round {
     this.ctx.player.locked = false;
     this.ctx.view.fadeTo(0);
     this.seeker?.startSeeking();
+    sfx.go();
     this.ctx.hud.show([
       { text: 'Valmiit tai ei,', size: 50, color: '#cfd6e0' },
       { text: 'täältä tullaan!', size: 80, bold: true, color: '#ffd84a' },
@@ -222,6 +242,9 @@ export class Round {
   private onCaught(t: Actor): void {
     if (t.caught || this.phase !== 'seek') return;
     t.caught = true;
+    if (t.isPlayer) sfx.playerCaught();
+    else if (this.role === 'seeker') sfx.foundHider(t.pos);
+    else sfx.otherCaught(t.pos);
     if (!t.isPlayer) {
       const verb = this.role === 'seeker' ? `Löysit: ${t.name}!` : `${t.name} jäi kiinni!`;
       this.ctx.hud.show([{ text: verb, size: 64, bold: true, color: '#ffd84a' }], 2.5);
@@ -241,6 +264,7 @@ export class Round {
     let color: string;
     if (reason === 'allCaught') {
       title = 'VOITIT!';
+      sfx.win();
       sub = `Löysit kaikki ajassa ${used}`;
       color = '#7dffa8';
     } else if (reason === 'playerCaught') {
@@ -249,10 +273,12 @@ export class Round {
       color = '#ff8a5c';
     } else if (this.role === 'seeker') {
       title = 'AIKA LOPPUI';
+      sfx.lose();
       sub = `Löysit ${k} / ${n}`;
       color = '#ffd84a';
     } else {
       title = 'SELVISIT!';
+      sfx.win();
       sub = `Piiloutujat voittivat · muista kiinni ${k} / ${n}`;
       color = '#7dffa8';
     }

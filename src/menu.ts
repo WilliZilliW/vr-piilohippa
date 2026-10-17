@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sfx } from './audio';
 import type { Input } from './input';
 import { DIFFICULTY_LABELS, QUALITY_LABELS, type Difficulty, type Quality, type Settings } from './settings';
 import { padLine, TextPanel, type TextLine } from './text';
@@ -33,7 +34,7 @@ export class Menu {
   private readonly items: Item[];
 
   constructor(camera: THREE.Camera, private readonly input: Input, private readonly s: Settings, private readonly vr: boolean, actions: MenuActions) {
-    this.panel = new TextPanel({ width: 1.25, height: 1.28, background: 'rgba(12,16,26,0.94)', overlay: true, pxPerMeter: 600 });
+    this.panel = new TextPanel({ width: 1.25, height: 1.38, background: 'rgba(12,16,26,0.94)', overlay: true, pxPerMeter: 600 });
     this.panel.mesh.position.set(0, 0, -1.4);
     this.panel.mesh.visible = false;
     camera.add(this.panel.mesh);
@@ -63,6 +64,7 @@ export class Menu {
         value: () => DIFFICULTY_LABELS[s.difficulty],
         change: (d) => set(() => (s.difficulty = cycle<Difficulty>(['easy', 'normal', 'hard'], s.difficulty, d)))(),
       },
+      { label: 'Äänenvoimakkuus', value: () => `${s.volume} %`, change: (d) => set(() => (s.volume = clamp(s.volume + d * 10, 0, 100)))() },
       { label: 'Nollaa katsesuunta', activate: () => { actions.recenter(); this.toggle(); } },
       { label: 'Palaa aulaan', activate: () => { this.toggle(); actions.backToLobby(); }, visible: actions.inLevel },
     ];
@@ -70,6 +72,7 @@ export class Menu {
 
   toggle(): void {
     this.open = !this.open;
+    sfx.uiOpen(this.open);
     this.index = 0;
     this.panel.mesh.visible = this.open;
     this.render();
@@ -86,14 +89,30 @@ export class Menu {
     }
 
     const items = this.visibleItems();
-    if (inp.justPressed('down')) this.index = (this.index + 1) % items.length;
-    if (inp.justPressed('up')) this.index = (this.index - 1 + items.length) % items.length;
+    if (inp.justPressed('down')) {
+      this.index = (this.index + 1) % items.length;
+      sfx.uiMove();
+    }
+    if (inp.justPressed('up')) {
+      this.index = (this.index - 1 + items.length) % items.length;
+      sfx.uiMove();
+    }
     const item = items[this.index];
     if (item.change) {
-      if (inp.justPressed('right')) item.change(1);
-      if (inp.justPressed('left')) item.change(-1);
-      if (inp.justPressed('action')) item.change(1);
+      if (inp.justPressed('right')) {
+        item.change(1);
+        sfx.uiChange(true);
+      }
+      if (inp.justPressed('left')) {
+        item.change(-1);
+        sfx.uiChange(false);
+      }
+      if (inp.justPressed('action')) {
+        item.change(1);
+        sfx.uiChange(true);
+      }
     } else if (item.activate && inp.justPressed('action')) {
+      sfx.uiSelect();
       item.activate();
     }
     if (this.open) this.render();
