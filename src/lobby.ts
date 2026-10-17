@@ -53,8 +53,8 @@ export class Lobby implements GameScene {
     title.mesh.position.set(0, 3.05, ROOM.minZ + 0.02);
     this.scene.add(title.mesh);
 
-    this.info = new TextPanel({ width: 4.2, height: 1.95, background: 'rgba(20,24,32,0.85)' });
-    this.info.mesh.position.set(0, 1.45, ROOM.minZ + 0.02);
+    this.info = new TextPanel({ width: 4.2, height: 2.25, background: 'rgba(20,24,32,0.85)' });
+    this.info.mesh.position.set(0, 1.4, ROOM.minZ + 0.02);
     this.scene.add(this.info.mesh);
   }
 
@@ -190,7 +190,8 @@ export class Lobby implements GameScene {
       padLine(['action'], 130),
       { text: 'tai kävele portista läpi', size: 38 },
       { text: 'Start = asetukset  ·  Select = nollaa katsesuunta', size: 32, color: '#cfd6e0' },
-      padLine(['menu', 'recenter'], 72),
+      { text: 'Nappitesti: paina mitä tahansa – kuvassa näkyy, minkä napin peli tunnisti', size: 28, color: '#9aa6b8' },
+      padLine(this.input.pressed(), 90),
       pad
         ? { text: `Ohjain: ${shortName(pad)}`, size: 34, color: '#7dffa8' }
         : { text: 'Ohjainta ei löydy – paina jotain ohjaimen nappia', size: 34, color: '#ffb35c' },

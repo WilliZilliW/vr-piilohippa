@@ -6,7 +6,7 @@ Selaimessa pelattava piilohippa VR-laseille: Android-puhelin laitetaan VR-kehikk
 
 ## Pelaaminen
 
-1. Yhdistä NES30 puhelimeen Bluetoothilla.
+1. Käynnistä NES30 pitämällä START pohjassa (Android-tila, ohjaimen oletus) ja yhdistä se puhelimeen Bluetoothilla.
 2. Avaa peli puhelimen Chromessa ja paina **Aloita VR-laseilla**.
 3. Laita puhelin laseihin. Aulassa valitaan rooli: katso porttia ja paina A, tai kävele portista läpi.
 
@@ -22,7 +22,7 @@ Selaimessa pelattava piilohippa VR-laseille: Android-puhelin laitetaan VR-kehikk
 | Select | Nollaa katsesuunta |
 | Start | Asetukset |
 
-Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, jossa painettava nappi on korostettu keltaisella.
+Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, jossa painettava nappi on korostettu keltaisella. NES30:n toimintonapit ovat ristissä: X ylhäällä, A oikealla, B alhaalla ja Y vasemmalla. Aulan nappitestillä näet, minkä napin peli tunnistaa.
 
 ## Pelin kulku
 

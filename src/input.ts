@@ -85,6 +85,11 @@ export class Input {
     this.moveY = (this.down.has('up') ? 1 : 0) - (this.down.has('down') ? 1 : 0);
   }
 
+  /** Kaikki juuri nyt pohjassa olevat napit (nappitestiä varten). */
+  pressed(): Button[] {
+    return [...this.down];
+  }
+
   isDown(b: Button): boolean {
     return this.down.has(b);
   }

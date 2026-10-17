@@ -6,10 +6,12 @@ import type { Button } from './input';
  *
  *   [L]                         [R]
  *    ┌──────────────────────────┐
- *    │   ▲                Y  X  │
- *    │ ◀   ▶  SEL  STA          │
- *    │   ▼                B  A  │
+ *    │   ▲                  X   │
+ *    │ ◀   ▶  SEL  STA    Y   A │
+ *    │   ▼                  B   │
  *    └──────────────────────────┘
+ *
+ * Asettelu tarkistettu NES30:n kuvista (Nintendo-järjestys, kuten SNES).
  */
 
 const HIGHLIGHT = '#ffd84a';
@@ -75,14 +77,14 @@ export function drawPad(ctx: CanvasRenderingContext2D, cx: number, top: number, 
     ctx.fillText(label, px(fx), py(0.75));
   }
 
-  // Toimintonapit: ylärivi Y X, alarivi B A
+  // Toimintonapit ristissä kuten NES30:ssä: X ylhäällä, A oikealla, B alhaalla, Y vasemmalla
   const face: [Button, string, number, number][] = [
-    ['jump', 'Y', 0.73, 0.38],
-    ['crouch', 'X', 0.86, 0.38],
-    ['run', 'B', 0.73, 0.72],
-    ['action', 'A', 0.86, 0.72],
+    ['crouch', 'X', 0.8, 0.33],
+    ['action', 'A', 0.895, 0.55],
+    ['run', 'B', 0.8, 0.77],
+    ['jump', 'Y', 0.705, 0.55],
   ];
-  const r = H * 0.12;
+  const r = H * 0.1;
   for (const [b, label, fx, fy] of face) {
     const x = px(fx);
     const y = py(fy);
