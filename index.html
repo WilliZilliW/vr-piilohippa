@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <title>VR-piilohippa</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      body { font-family: system-ui, sans-serif; color: #fff; touch-action: none; }
+      canvas { display: block; }
+      #start {
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 18px; padding: 16px;
+        background: radial-gradient(circle at 50% 30%, #2a3f6b, #0b1020 70%);
+        text-align: center; z-index: 10;
+      }
+      #start h1 { margin: 0; font-size: clamp(32px, 8vw, 56px); letter-spacing: 2px; }
+      #start p { margin: 0; max-width: 520px; line-height: 1.5; opacity: .85; }
+      #start button {
+        font-size: 20px; padding: 14px 28px; border-radius: 12px; border: 0;
+        cursor: pointer; min-width: 280px; font-weight: 600;
+      }
+      #btn-vr { background: #ffcc33; color: #222; }
+      #btn-flat { background: #ffffff22; color: #fff; }
+      #start .small { font-size: 14px; opacity: .6; }
+    </style>
+  </head>
+  <body>
+    <div id="start">
+      <h1>PIILOHIPPA</h1>
+      <p>Yhdistä NES30-ohjain puhelimeen Bluetoothilla, paina aloitusnappia ja laita puhelin VR-laseihin.</p>
+      <button id="btn-vr">Aloita VR-laseilla</button>
+      <button id="btn-flat">Pelaa ilman laseja (testi)</button>
+      <p class="small">Ilman laseja: hiiri = katse (klikkaa ruutua), WASD/nuolet = liiku, Q/E = käänny,
+        F = A-nappi, välilyönti = hyppy / kiipeä, Shift = juoksu, C = kyykky, R = nollaa katse, Enter = valikko</p>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

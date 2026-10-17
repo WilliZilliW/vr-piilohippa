@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "piilohippa", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:http"], "port": 5174 }
+  ]
+}
