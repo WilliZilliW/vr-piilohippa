@@ -22,6 +22,22 @@ Selaimessa pelattava piilohippa VR-laseille: Android-puhelin laitetaan VR-kehikk
 | Select | Nollaa katsesuunta |
 | Start | Asetukset |
 
+### Kännykällä ilman VR-laseja
+
+Paina aloitusruudulla **Pelaa kännykällä** ja käännä puhelin vaakaan. Peliohjainta ei tarvita.
+
+| Kosketus | Toiminto |
+|---|---|
+| Vasen peukalo (ruudun vasen puoli) | Liikkuminen; tikku reunaan = juoksu |
+| Vedä ruudun oikealla puolella | Katsominen |
+| A | Valitse / ota kiinni |
+| Y | Hyppy, reunalle kiipeäminen |
+| B (pohjassa) | Juoksu |
+| X | Kyykky päälle / pois |
+| ☰ | Asetukset (tikulla liikutaan, A valitsee) |
+
+Kosketusnapeissa on samat kirjaimet kuin NES30-ohjaimessa, joten pelin nappikehotteet pätevät myös kännykällä.
+
 Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, jossa painettava nappi on korostettu keltaisella. NES30:n toimintonapit ovat ristissä: X ylhäällä, A oikealla, B alhaalla ja Y vasemmalla. Aulan nappitestillä näet, minkä napin peli tunnistaa.
 
 ## Pelin kulku

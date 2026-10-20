@@ -18,10 +18,13 @@ export interface Settings {
 
 const STORAGE_KEY = 'piilohippa.settings.v1';
 
-export function defaultSettings(vr: boolean): Settings {
+/** Pelitapa: VR-lasit, tietokone (testi) tai kännykkä kosketusohjauksella. */
+export type Mode = 'vr' | 'flat' | 'touch';
+
+export function defaultSettings(mode: Mode): Settings {
   return {
-    quality: vr ? 'medium' : 'high',
-    fov: vr ? 85 : 70,
+    quality: mode === 'flat' ? 'high' : 'medium',
+    fov: mode === 'vr' ? 85 : 70,
     eyeSeparation: 63,
     turnAngle: 30,
     moveSpeed: 100,
@@ -30,10 +33,10 @@ export function defaultSettings(vr: boolean): Settings {
   };
 }
 
-export function loadSettings(vr: boolean): Settings {
-  const defaults = defaultSettings(vr);
+export function loadSettings(mode: Mode): Settings {
+  const defaults = defaultSettings(mode);
   try {
-    const raw = localStorage.getItem(`${STORAGE_KEY}.${vr ? 'vr' : 'flat'}`);
+    const raw = localStorage.getItem(`${STORAGE_KEY}.${mode}`);
     if (raw) return { ...defaults, ...JSON.parse(raw) };
   } catch {
     // Tallennus ei käytettävissä (esim. yksityinen selaus) – käytetään oletuksia.
@@ -41,9 +44,9 @@ export function loadSettings(vr: boolean): Settings {
   return defaults;
 }
 
-export function saveSettings(vr: boolean, s: Settings): void {
+export function saveSettings(mode: Mode, s: Settings): void {
   try {
-    localStorage.setItem(`${STORAGE_KEY}.${vr ? 'vr' : 'flat'}`, JSON.stringify(s));
+    localStorage.setItem(`${STORAGE_KEY}.${mode}`, JSON.stringify(s));
   } catch {
     // ei haittaa
   }

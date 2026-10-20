@@ -6,7 +6,7 @@ const SCREEN_TO_WORLD = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.
 
 /**
  * Pään asento. VR-tilassa luetaan puhelimen asentoanturia,
- * testitilassa hiirtä.
+ * testitilassa hiirtä ja kännykkätilassa ruudun vetämistä (ks. touch.ts).
  */
 export class HeadTracker {
   /** Lopullinen pään asento suhteessa vartaloon. */
@@ -21,7 +21,7 @@ export class HeadTracker {
   private mousePitch = 0;
   private needsRecenter = false;
 
-  constructor(private readonly mode: 'sensor' | 'mouse', canvas: HTMLCanvasElement) {
+  constructor(private readonly mode: 'sensor' | 'mouse' | 'touch', canvas: HTMLCanvasElement) {
     if (mode === 'sensor') {
       window.addEventListener('deviceorientation', (e) => {
         if (e.alpha === null || e.beta === null || e.gamma === null) return;
@@ -29,15 +29,19 @@ export class HeadTracker {
         this.sensor = { alpha: e.alpha, beta: e.beta, gamma: e.gamma };
         if (first) this.needsRecenter = true;
       });
-    } else {
+    } else if (mode === 'mouse') {
       canvas.addEventListener('click', () => canvas.requestPointerLock?.());
       window.addEventListener('mousemove', (e) => {
         if (document.pointerLockElement !== canvas) return;
-        this.mouseYaw -= e.movementX * 0.0025;
-        this.mousePitch -= e.movementY * 0.0025;
-        this.mousePitch = THREE.MathUtils.clamp(this.mousePitch, -1.4, 1.4);
+        this.addLook(-e.movementX * 0.0025, -e.movementY * 0.0025);
       });
     }
+  }
+
+  /** Käännä katsetta (hiiri ja kosketus). */
+  addLook(dYaw: number, dPitch: number): void {
+    this.mouseYaw += dYaw;
+    this.mousePitch = THREE.MathUtils.clamp(this.mousePitch + dPitch, -1.4, 1.4);
   }
 
   get hasSensor(): boolean {

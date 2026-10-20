@@ -187,7 +187,14 @@ export class Lobby implements GameScene {
   update(dt: number, player: Player): void {
     this.time += dt;
     const pad = this.input.gamepadName;
-    this.info.setText([
+    if (this.input.touch) {
+      this.info.setText([
+        { text: 'Valitse rooli: katso porttia ja paina A', size: 46, bold: true },
+        { text: 'tai kävele portista läpi', size: 38 },
+        { text: 'Vasen peukalo = liiku · vedä ruutua = katso · ☰ = asetukset', size: 32, color: '#cfd6e0' },
+        { text: 'Vie tikku reunaan, niin juokset. X = kyykky päälle/pois', size: 30, color: '#9aa6b8' },
+      ]);
+    } else this.info.setText([
       { text: 'Valitse rooli: katso porttia ja paina A', size: 46, bold: true },
       padLine(['action'], 130),
       { text: 'tai kävele portista läpi', size: 38 },
