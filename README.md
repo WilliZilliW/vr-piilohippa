@@ -26,8 +26,8 @@ Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, joss
 
 ## Pelin kulku
 
-- **Etsijänä** lasket ensin 20 sekuntia silmät kiinni, kun neljä tietokoneen piiloutujaa juoksee piiloon. Sitten etsit: katso piiloutujaa läheltä ja paina A. Löydä kaikki 4 minuutissa.
-- **Piiloutujana** juokset piiloon, kun tietokoneen etsijä laskee pesäpuulla. Etsijä näkee, kuulee juoksun ja osaa kiivetä tikkaita katoille. Lisäksi etsijä saa 30 sekunnin välein tietää, missä olet, ja lähtee sinne – vaihda siis välillä piilopaikkaa. Selviä 4 minuuttia jäämättä kiinni.
+- **Etsijänä** lasket ensin 20 sekuntia silmät kiinni, kun neljä tietokoneen piiloutujaa juoksee piiloon. Sitten etsit: katso piiloutujaa läheltä ja paina A. 30 sekunnin välein näet hetken seinien läpi näkyvät valopylväät kaikkien piiloutujien kohdalla. Löydä kaikki 4 minuutissa.
+- **Piiloutujana** juokset piiloon, kun tietokoneen etsijä laskee pesäpuulla. Etsijä näkee, kuulee juoksun ja osaa kiivetä tikkaita katoille. Lisäksi etsijä saa 30 sekunnin välein tietää, missä kaikki piiloutujat ovat, ja lähtee lähimmän luo – vaihda siis välillä piilopaikkaa. Selviä 4 minuuttia jäämättä kiinni.
 - Pensaissa ja kyykyssä on vaikeampi huomata. Tietokoneen piiloutujat pakenevat, jos etsijä tulee liian lähelle.
 - Vaikeustaso (asetukset) vaikuttaa etsijän näköön, reaktioaikaan ja nopeuteen.
 
@@ -46,7 +46,7 @@ Käytä kuulokkeita: hahmojen ja autojen äänet ovat 3D-ääniä, joten kuulet,
 | Tik-tak | 30 sekuntia jäljellä |
 | Nouseva fanfaari | Löysit piiloutujan |
 | Kaksi laskevaa nuottia | Etsijä sai jonkun muun kiinni |
-| Kaikuva "ping" | Etsijä sai tietää, missä olet |
+| Kaikuva "ping" | Kaikkien piiloutujien sijainnit paljastuivat etsijälle |
 | Laskeva "vaa-vaa" | Jäit kiinni |
 | Metallinen kilahdus | Tikkaat |
 | Tööttäys | Seisot auton edessä |

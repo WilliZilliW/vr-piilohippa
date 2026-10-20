@@ -23,8 +23,10 @@ export interface RoundContext {
 
 const COUNT_TIME = 20;
 const SEEK_TIME = 240;
-/** Näin usein tietokoneen etsijä saa tietää, missä pelaaja on. */
+/** Näin usein etsijä saa tietää, missä kaikki piiloutujat ovat. */
 const REVEAL_INTERVAL = 30;
+/** Kuinka kauan sijaintimerkit näkyvät pelaajalle etsijänä. */
+const REVEAL_SHOW = 5;
 const NAMES = ['Aino', 'Eetu', 'Liisa', 'Onni', 'Venla', 'Veeti'];
 const SHIRTS = [0x2e86de, 0xf1c40f, 0x27ae60, 0x8e44ad, 0xe67e22, 0x16a085];
 const PANTS = [0x2c3e50, 0x34495e, 0x5d4037, 0x1b2631];
@@ -36,6 +38,15 @@ function hiderOutfit(i: number): Outfit {
 }
 
 const SEEKER_OUTFIT: Outfit = { shirt: 0xc0392b, pants: 0x1b2631, skin: 0xf1c27d, hair: 0x3b2a1a, cap: 0xb03024 };
+
+/** Seinien läpi näkyvä valopylväs piiloutujan kohdalla. */
+function revealMarker(): THREE.Mesh {
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff5a3c, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 30, 10, 1, true), mat);
+  m.renderOrder = 999;
+  m.frustumCulled = false;
+  return m;
+}
 
 function fmt(t: number): string {
   const s = Math.max(0, Math.ceil(t));
@@ -85,6 +96,8 @@ export class Round {
   private lastSec = 0;
   private wasChased = false;
   private revealT = REVEAL_INTERVAL;
+  private readonly markers = new Map<Agent, THREE.Mesh>();
+  private markerT = 0;
 
   constructor(private readonly ctx: RoundContext, private readonly town: Town, private readonly role: Role) {
     this.ai = {
@@ -120,7 +133,7 @@ export class Round {
         { text: 'Olet PIILOUTUJA', size: 80, bold: true, color: '#7dffa8' },
         { text: 'Juokse piiloon ennen kuin etsijä lopettaa laskemisen', size: 32 },
         { text: 'B = juoksu · X = kyykky · Y = kiipeä · tikkailla katolle', size: 28, color: '#cfd6e0' },
-        { text: `Etsijä näkee ${REVEAL_INTERVAL} sekunnin välein, missä olet – vaihda piilopaikkaa!`, size: 28, color: '#ffb08a' },
+        { text: `Etsijä näkee ${REVEAL_INTERVAL} sekunnin välein, missä kaikki ovat – vaihda piilopaikkaa!`, size: 28, color: '#ffb08a' },
         padLine(['run', 'crouch', 'jump'], 110),
       ], 6);
     }
@@ -164,14 +177,10 @@ export class Round {
       const before = this.t;
       this.t -= dt;
       if (before > 30 && this.t <= 30) sfx.timeWarning();
-      if (this.seeker && !this.me.caught) {
-        this.revealT -= dt;
-        if (this.revealT <= 0) {
-          this.revealT = REVEAL_INTERVAL;
-          this.seeker.reveal(this.me.pos);
-          sfx.revealed();
-          this.ctx.hud.show([{ text: 'Etsijä tietää, missä olet!', size: 56, bold: true, color: '#ff8a5c' }], 2.5);
-        }
+      this.revealT -= dt;
+      if (this.revealT <= 0) {
+        this.revealT = REVEAL_INTERVAL;
+        this.reveal();
       }
       this.updateStatus();
       if (this.role === 'seeker' && input.justPressed('action')) this.tryCatch();
@@ -195,6 +204,7 @@ export class Round {
     const sv = this.seekerView;
     for (const h of this.hiders) h.update(dt, sv, counting);
     for (const a of this.agents) a.update(dt, this.ai.world);
+    this.updateMarkers(dt);
 
     if (this.phase === 'seek') {
       if (this.role === 'seeker' && this.hiders.every((h) => h.agent.caught)) this.end('allCaught');
@@ -214,6 +224,46 @@ export class Round {
       { text: 'täältä tullaan!', size: 80, bold: true, color: '#ffd84a' },
       ...(this.role === 'seeker' ? [{ text: 'Katso piiloutujaa läheltä ja paina A', size: 34 }, padLine(['action'], 110)] : []),
     ], 3.5);
+  }
+
+  /** Etsijä saa tietää kaikkien vapaiden piiloutujien sijainnit. */
+  private reveal(): void {
+    const free = this.hiders.map((h) => h.agent).filter((a) => !a.caught);
+    if (this.seeker) {
+      if (this.me.caught) return;
+      this.seeker.reveal([...free, this.me]);
+      sfx.revealed();
+      this.ctx.hud.show([{ text: 'Etsijä tietää, missä kaikki ovat!', size: 56, bold: true, color: '#ff8a5c' }], 2.5);
+    } else if (free.length) {
+      for (const a of free) {
+        const m = revealMarker();
+        this.town.scene.add(m);
+        this.markers.set(a, m);
+      }
+      this.markerT = REVEAL_SHOW;
+      sfx.revealed();
+      this.ctx.hud.show([{ text: 'Näet nyt, missä kaikki ovat!', size: 56, bold: true, color: '#ffd84a' }], 2.5);
+    }
+  }
+
+  private updateMarkers(dt: number): void {
+    if (!this.markers.size) return;
+    this.markerT -= dt;
+    for (const [a, m] of this.markers) {
+      if (this.markerT <= 0 || a.caught || this.phase === 'end') {
+        this.removeMarker(a, m);
+        continue;
+      }
+      m.position.set(a.pos.x, a.pos.y + 15, a.pos.z);
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.6 * Math.min(1, this.markerT);
+    }
+  }
+
+  private removeMarker(a: Agent, m: THREE.Mesh): void {
+    m.removeFromParent();
+    m.geometry.dispose();
+    (m.material as THREE.Material).dispose();
+    this.markers.delete(a);
   }
 
   private caughtCount(): number {
@@ -304,6 +354,7 @@ export class Round {
   }
 
   dispose(): void {
+    for (const [a, m] of this.markers) this.removeMarker(a, m);
     for (const a of this.agents) a.dispose();
     this.ctx.player.locked = false;
     this.ctx.view.fadeTo(0);
