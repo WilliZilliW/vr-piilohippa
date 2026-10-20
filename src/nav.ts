@@ -21,7 +21,8 @@ export class NavGrid {
   private readonly heap: Int32Array;
   private readonly f: Float32Array;
 
-  constructor(private readonly world: World, extent: number) {
+  /** `roadEdge`: ajoratoja on vain tämän rajan sisäpuolella; sen ulkopuolinen maa (metsä) on tavallista maastoa. */
+  constructor(private readonly world: World, extent: number, private readonly roadEdge = Infinity) {
     this.min = -extent;
     this.size = Math.ceil((extent * 2) / this.cell);
     const n = this.size * this.size;
@@ -66,7 +67,8 @@ export class NavGrid {
         const i = iz * this.size + ix;
         this.ground[i] = ground;
         // Ajoradat (maan taso 0) ovat kalliimpia: hahmot suosivat jalkakäytäviä.
-        this.cost[i] = blocked ? 0 : ground < 0.05 ? 3 : 1;
+        const road = ground < 0.05 && Math.abs(x) < this.roadEdge && Math.abs(z) < this.roadEdge;
+        this.cost[i] = blocked ? 0 : road ? 3 : 1;
       }
     }
     this.world.dynamic = saved;

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { at, Batcher, boxGeo, floorGeo, wallGeo } from './batch';
+import { at, Batcher, blobGeo, boxGeo, floorGeo, wallGeo } from './batch';
 import { Outdoor } from './environment';
 import { World } from './physics';
 import type { Player } from './player';
@@ -27,6 +27,9 @@ export const ROAD_LINES = [-72, -24, 24, 72];
 const HALF_INNER = 18; // korttelin sisäosa (ilman jalkakäytävää)
 const HALF_BLOCK = 20; // korttelin reuna jalkakäytävineen
 const TOWN_EDGE = 76;
+/** Metsävyöhyke kaupungin ympärillä (etäisyys keskustasta). */
+const FOREST_INNER = 80;
+const FOREST_OUTER = 95;
 const B = 0.15; // korttelin pinnan korkeus (jalkakäytävän reuna)
 
 type Dir = '+x' | '-x' | '+z' | '-z';
@@ -83,7 +86,7 @@ export class Town implements GameScene {
     this.b.build(this.scene, { noShadow: [m.asphalt, m.grass, m.pavers, m.gravel, m.white] });
 
     this.resolveLadderRoofs();
-    this.nav = new NavGrid(this.world, 80);
+    this.nav = new NavGrid(this.world, 98, TOWN_EDGE);
     this.vision = new Vision(this.world, this.bushes);
     this.makeSpots();
 
@@ -121,10 +124,10 @@ export class Town implements GameScene {
     }
   }
 
-  /** Piilopaikat: pensaat, seinien ja aitojen vierustat sekä katot. */
+  /** Piilopaikat: pensaat, seinien, aitojen, kivien ja puiden vierustat sekä katot. */
   private makeSpots(): void {
     for (const b of this.bushes) {
-      if (Math.abs(b.x) < 75 && Math.abs(b.z) < 75) this.spots.push({ pos: new THREE.Vector3(b.x, b.y, b.z), kind: 'bush' });
+      if (Math.abs(b.x) < FOREST_OUTER && Math.abs(b.z) < FOREST_OUTER) this.spots.push({ pos: new THREE.Vector3(b.x, b.y, b.z), kind: 'bush' });
     }
     const nav = this.nav;
     const N = nav.size;
@@ -133,7 +136,7 @@ export class Town implements GameScene {
         const i = iz * N + ix;
         if (nav.cost[i] !== 1) continue; // ei ajoradalle
         const c = nav.center(i);
-        if (Math.abs(c.x) > 74 || Math.abs(c.z) > 74 || c.distanceTo(this.base) < 10) continue;
+        if (Math.abs(c.x) > FOREST_OUTER || Math.abs(c.z) > FOREST_OUTER || c.distanceTo(this.base) < 10) continue;
         let blockedNear = 0;
         for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (nav.cost[i + dz * N + dx] === 0) blockedNear++;
         if (blockedNear >= 2) this.spots.push({ pos: c, kind: 'wall' });
@@ -556,15 +559,58 @@ export class Town implements GameScene {
 
   // ---------- Metsä kaupungin ympärillä ----------
 
+  /**
+   * Kaupunkia kiertävä metsävyöhyke, jossa voi liikkua ja piiloutua:
+   * kuusia ja lehtipuita, aluskasvillisuutta, kiviä ja kaatuneita runkoja.
+   */
   private buildForest(): void {
     const b = this.b;
-    for (let i = 0; i < 170; i++) {
-      const side = Math.floor(this.r() * 4);
-      const along = this.rand(-96, 96);
-      const depth = this.rand(81, 96);
-      const [x, z] = side === 0 ? [along, -depth] : side === 1 ? [along, depth] : side === 2 ? [-depth, along] : [depth, along];
-      if (this.r() < 0.7) spruce(b, this.world, x, z, this.rand(1, 1.7));
-      else tree(b, this.world, x, z, i, this.rand(1.1, 1.6));
+    const m = materials();
+    const used: [number, number, number][] = [];
+    const free = (x: number, z: number, r: number) => used.every(([ux, uz, ur]) => Math.hypot(x - ux, z - uz) > r + ur);
+    const place = (r: number, inner = FOREST_INNER): [number, number] | null => {
+      for (let k = 0; k < 30; k++) {
+        const side = Math.floor(this.r() * 4);
+        const along = this.rand(-FOREST_OUTER, FOREST_OUTER);
+        const depth = this.rand(inner, FOREST_OUTER);
+        const [x, z] = side === 0 ? [along, -depth] : side === 1 ? [along, depth] : side === 2 ? [-depth, along] : [depth, along];
+        if (free(x, z, r)) {
+          used.push([x, z, r]);
+          return [x, z];
+        }
+      }
+      return null;
+    };
+
+    // Kivet ja kaatuneet rungot: esteitä, joiden taakse voi kyyristyä.
+    for (let i = 0; i < 26; i++) {
+      const p = place(1.6, FOREST_INNER + 2);
+      if (!p) continue;
+      const s = this.rand(0.7, 1.3);
+      b.add(blobGeo(s, i * 5.3, 0.3, 1), m.concrete, at(p[0], s * 0.35, p[1], i, 1.3, 0.8, 1));
+      this.world.addBox(p[0], 0, p[1], s * 2.2, s * 1.1, s * 1.7);
+    }
+    for (let i = 0; i < 14; i++) {
+      const p = place(2.2, FOREST_INNER + 2);
+      if (!p) continue;
+      const len = this.rand(3, 4.5);
+      const alongX = this.r() < 0.5;
+      b.add(new THREE.CylinderGeometry(0.28, 0.32, len, 8).rotateZ(Math.PI / 2), m.bark, at(p[0], 0.3, p[1], alongX ? 0 : Math.PI / 2));
+      this.world.addBox(p[0], 0, p[1], alongX ? len : 0.6, 0.6, alongX ? 0.6 : len);
+    }
+
+    // Puut riittävän harvassa, jotta niiden välistä mahtuu kulkemaan.
+    for (let i = 0; i < 420; i++) {
+      const p = place(1.1);
+      if (!p) continue;
+      if (this.r() < 0.65) spruce(b, this.world, p[0], p[1], this.rand(1, 1.7));
+      else tree(b, this.world, p[0], p[1], i, this.rand(1.1, 1.6));
+    }
+
+    // Aluskasvillisuus: pensaisiin voi piiloutua.
+    for (let i = 0; i < 90; i++) {
+      const p = place(1.2);
+      if (p) this.bushAt(p[0], 0, p[1], 300 + i, this.rand(0.8, 1.3));
     }
   }
 }

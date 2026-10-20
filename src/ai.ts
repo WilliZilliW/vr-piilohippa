@@ -512,7 +512,7 @@ export class HiderBrain {
       const s = this.ai.spots[Math.floor(Math.random() * this.ai.spots.length)];
       if (this.taken.has(s)) continue;
       const dB = dist2(s.pos, base);
-      if (dB < 14 || dB > 62) continue;
+      if (dB < 14 || dB > 95) continue;
       let tooClose = false;
       for (const o of this.taken) if (dist2(o.pos, s.pos) < 6) tooClose = true;
       if (tooClose) continue;
