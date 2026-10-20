@@ -416,6 +416,12 @@ export class SeekerBrain implements SeekerView {
     this.lastSeen.copy(t.pos);
   }
 
+  /** Etsijä saa vihjeen kohteen sijainnista ja lähtee katsomaan (ellei jo jahtaa). */
+  reveal(p: THREE.Vector3): void {
+    if (this.state === 'count' || this.state === 'chase') return;
+    this.investigate(p);
+  }
+
   private investigate(p: THREE.Vector3): void {
     this.state = 'investigate';
     this.agent.nav.go(this.agent.pos, p);

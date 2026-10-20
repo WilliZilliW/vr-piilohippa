@@ -315,6 +315,11 @@ class Sfx {
   heard(pos: THREE.Vector3): void {
     this.tone({ f: 220, f2: 330, dur: 0.35, type: 'sawtooth', vol: 0.25, pos, ref: 4, attack: 0.04 });
   }
+  /** Etsijä sai tietää sijaintisi: kaikuluotaimen "ping" ja matala jälkikaiku. */
+  revealed(): void {
+    this.tone({ f: 1400, f2: 1300, dur: 0.6, type: 'sine', vol: 0.18 });
+    this.tone({ f: 700, f2: 650, dur: 0.9, type: 'sine', vol: 0.08, at: 0.25 });
+  }
   /** Voitto: duurifanfaari. */
   win(): void {
     const seq = [[60, 0], [64, 0.15], [67, 0.3], [72, 0.45], [67, 0.65], [72, 0.8]] as const;

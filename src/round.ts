@@ -23,6 +23,8 @@ export interface RoundContext {
 
 const COUNT_TIME = 20;
 const SEEK_TIME = 240;
+/** Näin usein tietokoneen etsijä saa tietää, missä pelaaja on. */
+const REVEAL_INTERVAL = 30;
 const NAMES = ['Aino', 'Eetu', 'Liisa', 'Onni', 'Venla', 'Veeti'];
 const SHIRTS = [0x2e86de, 0xf1c40f, 0x27ae60, 0x8e44ad, 0xe67e22, 0x16a085];
 const PANTS = [0x2c3e50, 0x34495e, 0x5d4037, 0x1b2631];
@@ -82,6 +84,7 @@ export class Round {
   private readonly positions: THREE.Vector3[] = [];
   private lastSec = 0;
   private wasChased = false;
+  private revealT = REVEAL_INTERVAL;
 
   constructor(private readonly ctx: RoundContext, private readonly town: Town, private readonly role: Role) {
     this.ai = {
@@ -117,6 +120,7 @@ export class Round {
         { text: 'Olet PIILOUTUJA', size: 80, bold: true, color: '#7dffa8' },
         { text: 'Juokse piiloon ennen kuin etsijä lopettaa laskemisen', size: 32 },
         { text: 'B = juoksu · X = kyykky · Y = kiipeä · tikkailla katolle', size: 28, color: '#cfd6e0' },
+        { text: `Etsijä näkee ${REVEAL_INTERVAL} sekunnin välein, missä olet – vaihda piilopaikkaa!`, size: 28, color: '#ffb08a' },
         padLine(['run', 'crouch', 'jump'], 110),
       ], 6);
     }
@@ -160,6 +164,15 @@ export class Round {
       const before = this.t;
       this.t -= dt;
       if (before > 30 && this.t <= 30) sfx.timeWarning();
+      if (this.seeker && !this.me.caught) {
+        this.revealT -= dt;
+        if (this.revealT <= 0) {
+          this.revealT = REVEAL_INTERVAL;
+          this.seeker.reveal(this.me.pos);
+          sfx.revealed();
+          this.ctx.hud.show([{ text: 'Etsijä tietää, missä olet!', size: 56, bold: true, color: '#ff8a5c' }], 2.5);
+        }
+      }
       this.updateStatus();
       if (this.role === 'seeker' && input.justPressed('action')) this.tryCatch();
       if (this.t <= 0) this.end('timeout');
