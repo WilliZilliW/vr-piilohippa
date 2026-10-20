@@ -1,6 +1,6 @@
 /**
- * Ohjaus: Bluetooth-peliohjain (8BitDo NES30) Gamepad API:n kautta
- * sekä näppäimistö. NES30 voi olla myös näppäimistötilassa, jolloin
+ * Ohjaus: Bluetooth-peliohjain (8BitDo NES30) Gamepad API:n kautta,
+ * näppäimistö sekä kännykän kosketusohjaimet. NES30 voi olla myös näppäimistötilassa, jolloin
  * sen napit tulevat näppäinpainalluksina.
  */
 
@@ -36,6 +36,13 @@ const KEYS: Record<string, Button> = {
   Enter: 'menu', Escape: 'menu',
 };
 
+/** Kosketusohjainten tila (ks. touch.ts). */
+export interface VirtualState {
+  buttons: Button[];
+  moveX: number;
+  moveY: number;
+}
+
 export class Input {
   /** -1..1, oikealle positiivinen. */
   moveX = 0;
@@ -46,6 +53,7 @@ export class Input {
   private down = new Set<Button>();
   private prev = new Set<Button>();
   private keys = new Set<string>();
+  private virtual: (() => VirtualState) | null = null;
 
   constructor() {
     window.addEventListener('keydown', (e) => {
@@ -54,6 +62,16 @@ export class Input {
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
+  }
+
+  /** Kytke kosketusohjaimet napeiksi ja analogiseksi liikkeeksi. */
+  setVirtual(source: () => VirtualState): void {
+    this.virtual = source;
+  }
+
+  /** Pelataanko kosketusohjaimilla. */
+  get touch(): boolean {
+    return this.virtual !== null;
   }
 
   update(): void {
@@ -81,8 +99,16 @@ export class Input {
       if (ay > 0.5) this.down.add('down');
     }
 
+    const v = this.virtual?.();
+    if (v) for (const b of v.buttons) this.down.add(b);
+
     this.moveX = (this.down.has('right') ? 1 : 0) - (this.down.has('left') ? 1 : 0);
     this.moveY = (this.down.has('up') ? 1 : 0) - (this.down.has('down') ? 1 : 0);
+    // Kosketustikku on analoginen: hidas hiipiminen onnistuu.
+    if (v && (v.moveX !== 0 || v.moveY !== 0)) {
+      this.moveX = v.moveX;
+      this.moveY = v.moveY;
+    }
   }
 
   /** Kaikki juuri nyt pohjassa olevat napit (nappitestiä varten). */

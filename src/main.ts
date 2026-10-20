@@ -6,16 +6,19 @@ import { Lobby } from './lobby';
 import { Menu } from './menu';
 import { Player } from './player';
 import type { GameScene, Role } from './scene';
-import { loadSettings, saveSettings } from './settings';
+import { loadSettings, saveSettings, type Mode } from './settings';
 import { Hud } from './hud';
+import { TouchControls } from './touch';
 import { Town } from './town';
 import { View } from './view';
 
 const startScreen = document.getElementById('start')!;
-document.getElementById('btn-vr')!.addEventListener('click', () => start(true));
-document.getElementById('btn-flat')!.addEventListener('click', () => start(false));
+document.getElementById('btn-vr')!.addEventListener('click', () => start('vr'));
+document.getElementById('btn-touch')!.addEventListener('click', () => start('touch'));
+document.getElementById('btn-flat')!.addEventListener('click', () => start('flat'));
 
-async function enterVrMode(): Promise<void> {
+/** Puhelimella: koko näyttö, vaakasuunta ja näyttö pysyy päällä. */
+async function enterPhoneMode(): Promise<void> {
   try {
     await document.documentElement.requestFullscreen?.({ navigationUI: 'hide' });
   } catch { /* ei koko näyttöä */ }
@@ -33,16 +36,18 @@ async function enterVrMode(): Promise<void> {
   });
 }
 
-function start(vr: boolean): void {
+function start(mode: Mode): void {
+  const vr = mode === 'vr';
   startScreen.style.display = 'none';
   sfx.init();
-  if (vr) void enterVrMode();
+  if (mode !== 'flat') void enterPhoneMode();
 
-  const settings = loadSettings(vr);
+  const settings = loadSettings(mode);
   const view = new View(vr);
   const input = new Input();
-  const head = new HeadTracker(vr ? 'sensor' : 'mouse', view.renderer.domElement);
+  const head = new HeadTracker(vr ? 'sensor' : mode === 'touch' ? 'touch' : 'mouse', view.renderer.domElement);
   const player = new Player(view, head, input);
+  if (mode === 'touch') new TouchControls(input, head);
 
   const hud = new Hud(view.camera);
 
@@ -54,7 +59,7 @@ function start(vr: boolean): void {
     view.applySettings(settings);
     sfx.setVolume(settings.volume / 100);
     current?.applyQuality(settings.quality);
-    saveSettings(vr, settings);
+    saveSettings(mode, settings);
   };
 
   const enter = (scene: GameScene) => {

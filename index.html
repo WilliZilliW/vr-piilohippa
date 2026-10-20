@@ -11,7 +11,8 @@
       canvas { display: block; }
       #start {
         position: fixed; inset: 0; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; gap: 18px; padding: 16px;
+        align-items: center; justify-content: safe center; gap: 18px; padding: 16px;
+        overflow-y: auto; touch-action: pan-y; box-sizing: border-box;
         background: radial-gradient(circle at 50% 30%, #2a3f6b, #0b1020 70%);
         text-align: center; z-index: 10;
       }
@@ -22,6 +23,7 @@
         cursor: pointer; min-width: 280px; font-weight: 600;
       }
       #btn-vr { background: #ffcc33; color: #222; }
+      #btn-touch { background: #7dffa8; color: #222; }
       #btn-flat { background: #ffffff22; color: #fff; }
       #start .small { font-size: 14px; opacity: .6; }
     </style>
@@ -31,8 +33,11 @@
       <h1>PIILOHIPPA</h1>
       <p>Käynnistä NES30 pitämällä START pohjassa (Android-tila) ja yhdistä se puhelimeen Bluetoothilla. Paina sitten aloitusnappia ja laita puhelin VR-laseihin.</p>
       <button id="btn-vr">Aloita VR-laseilla</button>
-      <button id="btn-flat">Pelaa ilman laseja (testi)</button>
-      <p class="small">Ilman laseja: hiiri = katse (klikkaa ruutua), WASD/nuolet = liiku, Q/E = käänny,
+      <button id="btn-touch">Pelaa kännykällä</button>
+      <button id="btn-flat">Pelaa tietokoneella (testi)</button>
+      <p class="small">Kännykällä: käännä puhelin vaakaan. Vasen peukalo = liiku (vie tikku reunaan, niin juokset),
+        vedä ruutua = katso, A = valitse / ota kiinni, Y = hyppy / kiipeä, B = juoksu, X = kyykky päälle/pois, ☰ = asetukset</p>
+      <p class="small">Tietokoneella: hiiri = katse (klikkaa ruutua), WASD/nuolet = liiku, Q/E = käänny,
         F = A-nappi, välilyönti = hyppy / kiipeä, Shift = juoksu, C = kyykky, R = nollaa katse, Enter = valikko</p>
     </div>
     <script type="module" src="/src/main.ts"></script>
