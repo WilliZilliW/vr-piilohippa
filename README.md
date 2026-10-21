@@ -8,7 +8,7 @@ Selaimessa pelattava piilohippa VR-laseille: Android-puhelin laitetaan VR-kehikk
 
 1. Käynnistä NES30 pitämällä START pohjassa (Android-tila, ohjaimen oletus) ja yhdistä se puhelimeen Bluetoothilla.
 2. Avaa peli puhelimen Chromessa ja paina **Aloita VR-laseilla**.
-3. Laita puhelin laseihin. Aulassa valitaan rooli: katso porttia ja paina A, tai kävele portista läpi.
+3. Laita puhelin laseihin. Aulassa valitaan rooli: katso porttia ja paina A, tai kävele portista läpi. Keskimmäinen ARVONTA-portti arpoo roolin puolestasi.
 
 | Nappi | Toiminto |
 |---|---|
