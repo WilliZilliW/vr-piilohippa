@@ -41,6 +41,8 @@ export interface VirtualState {
   buttons: Button[];
   moveX: number;
   moveY: number;
+  /** Tikku vedetty reunaan: juostaan. */
+  run: boolean;
 }
 
 export class Input {
@@ -49,6 +51,8 @@ export class Input {
   /** -1..1, eteenpäin positiivinen. */
   moveY = 0;
   gamepadName: string | null = null;
+  /** Juoksu kosketustikulla (ei nappi, ks. touch.ts). */
+  analogRun = false;
 
   private down = new Set<Button>();
   private prev = new Set<Button>();
@@ -101,6 +105,7 @@ export class Input {
 
     const v = this.virtual?.();
     if (v) for (const b of v.buttons) this.down.add(b);
+    this.analogRun = v?.run ?? false;
 
     this.moveX = (this.down.has('right') ? 1 : 0) - (this.down.has('left') ? 1 : 0);
     this.moveY = (this.down.has('up') ? 1 : 0) - (this.down.has('down') ? 1 : 0);

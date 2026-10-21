@@ -72,7 +72,7 @@ export class Player {
     const my = active ? input.moveY : 0;
     c.moveX = this.fwd.x * my + this.right.x * mx;
     c.moveZ = this.fwd.z * my + this.right.z * mx;
-    c.run = active && input.isDown('run');
+    c.run = active && (input.isDown('run') || input.analogRun);
     c.crouch = active && input.isDown('crouch');
     c.jump = active && input.justPressed('jump');
     c.climb = my;

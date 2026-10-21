@@ -1,5 +1,5 @@
 import type { HeadTracker } from './head';
-import type { Button, Input } from './input';
+import type { Button, Input, VirtualState } from './input';
 
 /**
  * Kosketusohjaus kännykällä pelaamiseen ilman VR-laseja:
@@ -165,15 +165,16 @@ export class TouchControls {
   }
 
   /** Napit ja tikun asento Input-luokalle. */
-  private state(): { buttons: Button[]; moveX: number; moveY: number } {
+  private state(): VirtualState {
     const buttons = [...this.held, ...this.toggled];
     // Tikku toimii myös ristiohjaimena, jotta valikossa voi liikkua.
     if (this.moveX > 0.5) buttons.push('right');
     if (this.moveX < -0.5) buttons.push('left');
     if (this.moveY > 0.5) buttons.push('up');
     if (this.moveY < -0.5) buttons.push('down');
-    if (Math.hypot(this.moveX, this.moveY) > RUN_AT) buttons.push('run');
-    return { buttons, moveX: this.moveX, moveY: this.moveY };
+    // Tikun juoksu ei ole B-nappi, jottei se sulje valikkoa.
+    const run = Math.hypot(this.moveX, this.moveY) > RUN_AT;
+    return { buttons, moveX: this.moveX, moveY: this.moveY, run };
   }
 }
 
