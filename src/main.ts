@@ -141,5 +141,5 @@ function start(mode: Mode): void {
     frame(Math.min(timer.getDelta(), 0.05));
   });
   // Kehitystilassa testit voivat ajaa pelin ruutu kerrallaan.
-  if (import.meta.env.DEV) (window as unknown as { __game: unknown }).__game = { player, view, input, frame, current: () => current };
+  if (import.meta.env.DEV) (window as unknown as { __game: unknown }).__game = { player, view, input, menu, frame, current: () => current };
 }
