@@ -14,8 +14,11 @@ import { materials } from './textures';
 const ROOM = { minX: -7, maxX: 7, minZ: -9, maxZ: 5, height: 4.5 };
 const GATE_Z = -5.5;
 
+/** Portin rooli; arvontaportti valitsee roolin satunnaisesti. */
+type GateRole = Role | 'random';
+
 interface Gate {
-  role: Role;
+  role: GateRole;
   x: number;
   portal: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   sign: THREE.Mesh;
@@ -29,7 +32,8 @@ export class Lobby implements GameScene {
   readonly spawn = { x: 0, y: 0, z: 2, yaw: 0 };
 
   private readonly gates: Gate[] = [];
-  private readonly info: TextPanel;
+  private readonly infoLeft: TextPanel;
+  private readonly infoRight: TextPanel;
   private readonly raycaster = new THREE.Raycaster();
   private readonly env: THREE.WebGLRenderTarget;
   private prevZ = this.spawn.z;
@@ -46,18 +50,19 @@ export class Lobby implements GameScene {
     this.env = indoorEnvironment(this.scene, renderer);
     this.scene.background = new THREE.Color(0x101010);
     this.buildRoom();
-    this.buildGate('seeker', -3, 'ETSIJÄ', 'Etsi piiloutujat ja ota kiinni', 0xb5432f, '#ff8a5c');
-    this.buildGate('hider', 3, 'PIILOUTUJA', 'Piiloudu ja vältä etsijää', 0x2f7a46, '#7dffa8');
+    this.buildGate('seeker', -5, 'ETSIJÄ', 'Etsi piiloutujat ja ota kiinni', 0xb5432f, '#ff8a5c');
+    this.buildGate('random', 0, 'ARVONTA', 'Peli arpoo roolisi', 0x6a3fa0, '#c79bff');
+    this.buildGate('hider', 5, 'PIILOUTUJA', 'Piiloudu ja vältä etsijää', 0x2f7a46, '#7dffa8');
 
-    const title = new TextPanel({ width: 3.4, height: 1.0, background: 'rgba(20,24,32,0.9)' }, [
-      { text: 'PIILOHIPPA', size: 150, bold: true, color: '#ffd84a' },
-    ]);
-    title.mesh.position.set(0, 3.05, ROOM.minZ + 0.02);
-    this.scene.add(title.mesh);
-
-    this.info = new TextPanel({ width: 4.2, height: 2.25, background: 'rgba(20,24,32,0.85)' });
-    this.info.mesh.position.set(0, 1.4, ROOM.minZ + 0.02);
-    this.scene.add(this.info.mesh);
+    // Ohjetaulut takaseinällä porttien välissä.
+    const panel = (x: number) => {
+      const p = new TextPanel({ width: 2.7, height: 2.1, background: 'rgba(20,24,32,0.85)' });
+      p.mesh.position.set(x, 1.6, ROOM.minZ + 0.02);
+      this.scene.add(p.mesh);
+      return p;
+    };
+    this.infoLeft = panel(-3.6);
+    this.infoRight = panel(3.6);
   }
 
   private buildRoom(): void {
@@ -140,7 +145,7 @@ export class Lobby implements GameScene {
     b.build(this.scene, { castShadow: false, receiveShadow: false });
   }
 
-  private buildGate(role: Role, x: number, title: string, subtitle: string, color: number, glow: string): void {
+  private buildGate(role: GateRole, x: number, title: string, subtitle: string, color: number, glow: string): void {
     const m = materials();
     const b = new Batcher();
     const z = GATE_Z;
@@ -187,24 +192,32 @@ export class Lobby implements GameScene {
   update(dt: number, player: Player): void {
     this.time += dt;
     const pad = this.input.gamepadName;
-    if (this.input.touch) {
-      this.info.setText([
-        { text: 'Valitse rooli: katso porttia ja paina A', size: 46, bold: true },
-        { text: 'tai kävele portista läpi', size: 38 },
-        { text: 'Vasen peukalo = liiku · vedä ruutua = katso · ☰ = asetukset', size: 32, color: '#cfd6e0' },
-        { text: 'Vie tikku reunaan, niin juokset. X = kyykky päälle/pois', size: 30, color: '#9aa6b8' },
-      ]);
-    } else this.info.setText([
-      { text: 'Valitse rooli: katso porttia ja paina A', size: 46, bold: true },
-      padLine(['action'], 130),
-      { text: 'tai kävele portista läpi', size: 38 },
-      { text: 'Start = asetukset  ·  Select = nollaa katsesuunta', size: 32, color: '#cfd6e0' },
-      { text: 'Nappitesti: paina mitä tahansa – kuvassa näkyy, minkä napin peli tunnisti', size: 28, color: '#9aa6b8' },
-      padLine(this.input.pressed(), 90),
-      pad
-        ? { text: `Ohjain: ${shortName(pad)}`, size: 34, color: '#7dffa8' }
-        : { text: 'Ohjainta ei löydy – paina jotain ohjaimen nappia', size: 34, color: '#ffb35c' },
+    this.infoLeft.setText([
+      { text: 'PIILOHIPPA', size: 96, bold: true, color: '#ffd84a' },
+      { text: 'Valitse rooli: katso porttia ja paina A', size: 40, bold: true },
+      ...(this.input.touch ? [] : [padLine(['action'], 120)]),
+      { text: 'tai kävele portista läpi', size: 36 },
+      { text: 'Arvonta: peli valitsee roolin puolestasi', size: 32, color: '#c79bff' },
     ]);
+    if (this.input.touch) {
+      this.infoRight.setText([
+        { text: 'Kosketusohjaus', size: 56, bold: true },
+        { text: 'Vasen peukalo = liiku', size: 36 },
+        { text: 'Vie tikku reunaan, niin juokset', size: 32, color: '#cfd6e0' },
+        { text: 'Vedä ruutua = katso', size: 36 },
+        { text: 'X = kyykky päälle/pois · ☰ = asetukset', size: 32, color: '#cfd6e0' },
+      ]);
+    } else {
+      this.infoRight.setText([
+        { text: 'Start = asetukset', size: 36, color: '#cfd6e0' },
+        { text: 'Select = nollaa katsesuunta', size: 36, color: '#cfd6e0' },
+        { text: 'Nappitesti: paina mitä tahansa', size: 32, color: '#9aa6b8' },
+        padLine(this.input.pressed(), 110),
+        pad
+          ? { text: `Ohjain: ${shortName(pad)}`, size: 34, color: '#7dffa8' }
+          : { text: 'Ohjainta ei löydy – paina jotain ohjaimen nappia', size: 30, color: '#ffb35c' },
+      ]);
+    }
 
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const hits = this.raycaster.intersectObjects(this.gates.map((g) => g.portal), false);
@@ -233,7 +246,8 @@ export class Lobby implements GameScene {
     }
   }
 
-  private choose(role: Role): void {
+  private choose(gate: GateRole): void {
+    const role: Role = gate === 'random' ? (Math.random() < 0.5 ? 'seeker' : 'hider') : gate;
     this.chosen = true;
     sfx.gateEnter(role === 'seeker');
     this.onChoose(role);
