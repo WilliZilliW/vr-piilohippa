@@ -320,6 +320,30 @@ class Sfx {
     this.tone({ f: 1400, f2: 1300, dur: 0.6, type: 'sine', vol: 0.18 });
     this.tone({ f: 700, f2: 650, dur: 0.9, type: 'sine', vol: 0.08, at: 0.25 });
   }
+  /** Aarrelaatikko ilmestyi: kimalteleva kolmisointu laatikon suunnalta. */
+  crateSpawn(pos: THREE.Vector3): void {
+    [84, 88, 91, 96].forEach((n, i) => this.tone({ f: NOTE(n), dur: 0.4, vol: 0.12, at: i * 0.09, pos, ref: 8 }));
+  }
+  /** Laatikko kilkattaa hiljaa, jotta sen löytää korvalla. */
+  crateChime(pos: THREE.Vector3): void {
+    this.tone({ f: NOTE(91), dur: 0.5, vol: 0.06, pos, ref: 4 });
+    this.tone({ f: NOTE(96), dur: 0.6, vol: 0.04, at: 0.12, pos, ref: 4 });
+  }
+  /** Laatikko avattiin: nouseva liuku ja kimallus. */
+  crateOpen(): void {
+    this.tone({ f: 400, f2: 1600, dur: 0.35, type: 'triangle', vol: 0.14 });
+    [79, 83, 86, 91].forEach((n, i) => this.tone({ f: NOTE(n), dur: 0.25, type: 'square', vol: 0.06, at: 0.3 + i * 0.06 }));
+  }
+  /** Hämäysääni: piiloutujan askelia ja risahdus kaukana – johtaa etsijää harhaan. */
+  decoy(pos: THREE.Vector3): void {
+    for (let i = 0; i < 6; i++) this.noise({ dur: 0.05, freq: 1800, q: 1.2, vol: 0.5, at: i * 0.17, pos, ref: 6 });
+    this.noise({ dur: 0.4, freq: 2500, f2: 900, q: 0.8, vol: 0.4, at: 1.1, pos, ref: 6 });
+  }
+  /** Apuväline loppui: kaksi laskevaa piippausta. */
+  powerEnd(): void {
+    this.tone({ f: 990, dur: 0.08, type: 'triangle', vol: 0.1 });
+    this.tone({ f: 660, dur: 0.12, type: 'triangle', vol: 0.1, at: 0.11 });
+  }
   /** Voitto: duurifanfaari. */
   win(): void {
     const seq = [[60, 0], [64, 0.15], [67, 0.3], [72, 0.45], [67, 0.65], [72, 0.8]] as const;

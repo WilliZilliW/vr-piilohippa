@@ -16,6 +16,8 @@ export interface Actor {
   readonly running: boolean;
   readonly isPlayer: boolean;
   caught: boolean;
+  /** Näkymättömyys (aarrelaatikon apuväline): etsijä ei näe eikä kuule. */
+  invisible: boolean;
 }
 
 /** Etsijän näkökulma piiloutujan kannalta. */
@@ -51,6 +53,7 @@ export class Agent implements Actor {
   readonly nav: Navigator;
   readonly isPlayer = false;
   caught = false;
+  invisible = false;
   yaw = 0;
   wantYaw = 0;
   private readonly _eye = new THREE.Vector3();
@@ -334,7 +337,7 @@ export class SeekerBrain implements SeekerView {
     if (this.visionT <= 0) {
       this.visionT = 0.1;
       for (const t of free) {
-        const vis = this.ai.vision.canSee(a.eye, a.facing, t, this.p.range, this.p.fovCos);
+        const vis = !t.invisible && this.ai.vision.canSee(a.eye, a.facing, t, this.p.range, this.p.fovCos);
         let s = this.seen.get(t) ?? 0;
         s = vis ? s + 0.1 : Math.max(0, s - 0.05);
         this.seen.set(t, s);
@@ -350,7 +353,7 @@ export class SeekerBrain implements SeekerView {
     this.hearT -= dt;
     if (this.state !== 'chase' && this.hearT <= 0) {
       for (const t of free) {
-        if (t.running && dist2(t.pos, a.pos) < this.p.hear) {
+        if (t.running && !t.invisible && dist2(t.pos, a.pos) < this.p.hear) {
           this.hearT = 2.5;
           this.investigate(t.pos);
           break;
@@ -421,10 +424,17 @@ export class SeekerBrain implements SeekerView {
     if (this.state === 'count' || this.state === 'chase') return;
     let best: Actor | null = null;
     for (const t of targets) {
-      if (t.caught) continue;
+      if (t.caught || t.invisible) continue;
       if (!best || dist2(t.pos, this.pos) < dist2(best.pos, this.pos)) best = t;
     }
     if (best) this.investigate(best.pos);
+  }
+
+  /** Hämäysääni: etsijä jättää kaiken ja lähtee tutkimaan äänen suuntaa. */
+  distract(p: THREE.Vector3): void {
+    if (this.state === 'count') return;
+    this.target = null;
+    this.investigate(p);
   }
 
   private investigate(p: THREE.Vector3): void {
@@ -488,13 +498,14 @@ export class SeekerBrain implements SeekerView {
 // Tietokoneen piiloutuja
 // ---------------------------------------------------------------------------
 
-export type HiderState = 'go' | 'hidden' | 'flee' | 'caught' | 'jail';
+export type HiderState = 'go' | 'hidden' | 'flee' | 'loot' | 'caught' | 'jail';
 
 export class HiderBrain {
   state: HiderState = 'go';
   spot: Spot | null = null;
   private checkT = Math.random() * 0.3;
   private lookT = 0;
+  private lootT = Math.random();
 
   constructor(
     readonly agent: Agent,
@@ -533,7 +544,8 @@ export class HiderBrain {
     this.agent.nav.go(this.agent.pos, s.pos);
   }
 
-  update(dt: number, seeker: SeekerView, counting: boolean): void {
+  /** @param loot aarrelaatikon paikka, jos sellainen on maailmassa */
+  update(dt: number, seeker: SeekerView, counting: boolean, loot: THREE.Vector3 | null = null): void {
     const a = this.agent;
     const c = a.cmd;
     c.speedScale = 0.9;
@@ -570,6 +582,28 @@ export class HiderBrain {
         }
         // Jos piilopaikkaan ei päästy, valitaan uusi.
         if (this.spot && dist2(a.pos, this.spot.pos) > 3 && a.nav.done) this.start();
+        // Lähellä oleva aarrelaatikko houkuttaa, jos etsijä on kaukana.
+        this.lootT -= dt;
+        if (loot && !counting && this.lootT <= 0) {
+          this.lootT = 1;
+          if (dist2(a.pos, loot) < 25 && dist2(seeker.pos, loot) > 16 && dist2(seeker.pos, a.pos) > 12) {
+            this.state = 'loot';
+            a.nav.go(a.pos, loot);
+          }
+        }
+        break;
+      case 'loot':
+        c.run = true;
+        c.crouch = false;
+        // Laatikko otettu tai saavuttu: takaisin piiloon.
+        if (!loot || a.nav.done) {
+          if (this.spot) {
+            a.nav.go(a.pos, this.spot.pos);
+            this.state = 'go';
+          } else {
+            this.start();
+          }
+        }
         break;
       case 'flee':
         c.run = true;

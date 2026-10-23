@@ -45,6 +45,14 @@ Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, joss
 - **Etsijänä** lasket ensin 20 sekuntia silmät kiinni, kun neljä tietokoneen piiloutujaa juoksee piiloon. Sitten etsit: katso piiloutujaa läheltä ja paina A. 30 sekunnin välein näet hetken seinien läpi näkyvät valopylväät kaikkien piiloutujien kohdalla. Löydä kaikki 4 minuutissa.
 - **Piiloutujana** juokset piiloon, kun tietokoneen etsijä laskee pesäpuulla. Etsijä näkee, kuulee juoksun ja osaa kiivetä tikkaita katoille. Lisäksi etsijä saa 30 sekunnin välein tietää, missä kaikki piiloutujat ovat, ja lähtee lähimmän luo – vaihda siis välillä piilopaikkaa. Selviä 4 minuuttia jäämättä kiinni.
 - Kaupunkia kiertää metsä, jossa voi juosta ja piiloutua puiden, pensaiden, kivien ja kaatuneiden runkojen taakse.
+- **Aarrelaatikko** ilmestyy etsinnän aikana satunnaiseen paikkaan. Sen tunnistaa kultaisesta valokeilasta ja hiljaisesta kilkatuksesta. Piiloutuja, joka kävelee laatikon luo, saa siitä satunnaisen apuvälineen. Uusi laatikko ilmestyy 25 sekuntia edellisen avaamisen jälkeen. Tietokoneen piiloutujat hakevat laatikon, jos se on lähellä ja etsijä kaukana.
+
+  | Apuväline | Mitä tekee |
+  |---|---|
+  | Näkymättömyys (12 s) | Etsijä ei näe eikä kuule sinua |
+  | Pikajuoksu (15 s) | Liikut 1,6 kertaa tavallista nopeammin |
+  | Hämäysääni | Kaukana kuuluu askelia, ja etsijä lähtee tutkimaan niitä |
+  | Etsijätutka (10 s) | Etsijän kohdalla näkyy seinien läpi näkyvä pylväs |
 - Pensaissa ja kyykyssä on vaikeampi huomata. Tietokoneen piiloutujat pakenevat, jos etsijä tulee liian lähelle.
 - Vaikeustaso (asetukset) vaikuttaa etsijän näköön, reaktioaikaan ja nopeuteen.
 
@@ -64,6 +72,10 @@ Käytä kuulokkeita: hahmojen ja autojen äänet ovat 3D-ääniä, joten kuulet,
 | Nouseva fanfaari | Löysit piiloutujan |
 | Kaksi laskevaa nuottia | Etsijä sai jonkun muun kiinni |
 | Kaikuva "ping" | Kaikkien piiloutujien sijainnit paljastuivat etsijälle |
+| Kimalteleva kolmisointu | Aarrelaatikko ilmestyi (kuuluu sen suunnalta) |
+| Hiljainen kilkatus | Aarrelaatikko on lähellä |
+| Nouseva liuku ja kimallus | Aarrelaatikko avattiin |
+| Kaksi laskevaa piippausta | Apuväline loppui |
 | Laskeva "vaa-vaa" | Jäit kiinni |
 | Metallinen kilahdus | Tikkaat |
 | Tööttäys | Seisot auton edessä |

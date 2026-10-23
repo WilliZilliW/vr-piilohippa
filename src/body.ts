@@ -59,6 +59,8 @@ export class Body {
   crouching = false;
   running = false;
   onLadder = false;
+  /** Nopeuskerroin apuvälineille (pikajuoksu). */
+  speedMul = 1;
 
   private climbAnim: ClimbAnim | null = null;
   private readonly boxes: THREE.Box3[] = [];
@@ -110,7 +112,7 @@ export class Body {
 
     // Vaakaliike
     const base = this.crouching ? CROUCH_SPEED : this.running ? RUN_SPEED : WALK_SPEED;
-    const speed = base * cmd.speedScale;
+    const speed = base * cmd.speedScale * this.speedMul;
     let tx = cmd.moveX;
     let tz = cmd.moveZ;
     const len = Math.hypot(tx, tz);
