@@ -17,11 +17,15 @@ export const POWERS: Record<PowerKind, { name: string; info: string; seconds: nu
 const RESPAWN_TIME = 25;
 const PICKUP_RANGE = 1.2;
 const CHIME_EVERY = 4;
+/** Näin läheltä tietokoneen piiloutuja huomaa laatikon ilman paljastusta. */
+const NOTICE_RANGE = 10;
 
 /**
  * Aarrelaatikko: ilmestyy satunnaiseen paikkaan kaupungissa. Piiloutuja,
  * joka kävelee laatikon luo, saa siitä satunnaisen apuvälineen.
- * Kerrallaan maailmassa on yksi laatikko.
+ * Kerrallaan maailmassa on yksi laatikko. Etsijä ei näe laatikkoa;
+ * piiloutujat saavat tietää sen paikan samalla, kun etsijä saa tietää
+ * piiloutujien sijainnit.
  */
 export class LootCrates {
   /** Laatikon paikka, tai null, jos laatikkoa ei juuri nyt ole. */
@@ -35,12 +39,51 @@ export class LootCrates {
   private chimeT = 0;
   private time = 0;
   private active = false;
+  /** Ovatko piiloutujat saaneet tietää laatikon paikan. */
+  private known = false;
+  private readonly marker: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>;
+  private markerT = 0;
 
-  constructor(scene: THREE.Scene, private readonly spots: Spot[], private readonly base: THREE.Vector3) {
+  /** @param visible näkyykö ja kuuluuko laatikko pelaajalle (ei, kun pelaaja on etsijä) */
+  constructor(scene: THREE.Scene, private readonly spots: Spot[], private readonly base: THREE.Vector3, private readonly visible: boolean) {
     this.box = this.buildBox();
     this.group.add(this.box);
     this.group.visible = false;
     scene.add(this.group);
+
+    // Seinien läpi näkyvä kultainen pylväs paljastuksen ajaksi.
+    this.marker = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.3, 30, 10, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xffd84a, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false }),
+    );
+    this.marker.renderOrder = 999;
+    this.marker.frustumCulled = false;
+    this.marker.position.y = 15;
+    this.marker.visible = false;
+    this.group.add(this.marker);
+    this.geometries.push(this.marker.geometry);
+    this.materials.push(this.marker.material);
+  }
+
+  /**
+   * Piiloutujat saavat tietää laatikon paikan.
+   * @param showSeconds kauanko pylväs näkyy pelaajalle (0 = ei näytetä)
+   */
+  reveal(showSeconds: number): boolean {
+    if (!this.pos) return false;
+    this.known = true;
+    if (showSeconds > 0 && this.visible) {
+      this.markerT = showSeconds;
+      this.marker.visible = true;
+    }
+    return true;
+  }
+
+  /** Laatikon paikka tietokoneen piiloutujalle, jos se tietää laatikosta. */
+  targetFor(p: THREE.Vector3): THREE.Vector3 | null {
+    if (!this.pos) return null;
+    if (this.known || Math.hypot(p.x - this.pos.x, p.z - this.pos.z) < NOTICE_RANGE) return this.pos;
+    return null;
   }
 
   /** Etsintä alkaa: ensimmäinen laatikko maailmaan. */
@@ -52,13 +95,18 @@ export class LootCrates {
   update(dt: number, avoid: THREE.Vector3[]): void {
     if (!this.active) return;
     this.time += dt;
+    if (this.markerT > 0) {
+      this.markerT -= dt;
+      this.marker.material.opacity = 0.6 * Math.min(1, this.markerT);
+      if (this.markerT <= 0 || !this.pos) this.marker.visible = false;
+    }
     if (this.pos) {
       this.box.position.y = 0.45 + Math.sin(this.time * 2.2) * 0.08;
       this.box.rotation.y += dt * 1.2;
       this.chimeT -= dt;
       if (this.chimeT <= 0) {
         this.chimeT = CHIME_EVERY;
-        sfx.crateChime(this.pos);
+        if (this.visible) sfx.crateChime(this.pos);
       }
     } else {
       this.respawnT -= dt;
@@ -75,6 +123,8 @@ export class LootCrates {
       if (Math.hypot(h.pos.x - p.x, h.pos.z - p.z) < PICKUP_RANGE && Math.abs(h.pos.y - p.y) < 1.5) {
         this.pos = null;
         this.group.visible = false;
+        this.marker.visible = false;
+        this.markerT = 0;
         this.respawnT = RESPAWN_TIME;
         return h;
       }
@@ -102,10 +152,11 @@ export class LootCrates {
     if (!list.length) return;
     const s = list[Math.floor(Math.random() * list.length)];
     this.pos = s.pos.clone();
+    this.known = false;
     this.group.position.copy(this.pos);
-    this.group.visible = true;
+    this.group.visible = this.visible;
     this.chimeT = CHIME_EVERY;
-    sfx.crateSpawn(this.pos);
+    if (this.visible) sfx.crateSpawn(this.pos);
   }
 
   private buildBox(): THREE.Group {
