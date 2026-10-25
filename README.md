@@ -45,7 +45,7 @@ Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, joss
 - **Etsijänä** lasket ensin 20 sekuntia silmät kiinni, kun neljä tietokoneen piiloutujaa juoksee piiloon. Sitten etsit: katso piiloutujaa läheltä ja paina A. 30 sekunnin välein näet hetken seinien läpi näkyvät valopylväät kaikkien piiloutujien kohdalla. Löydä kaikki 4 minuutissa.
 - **Piiloutujana** juokset piiloon, kun tietokoneen etsijä laskee pesäpuulla. Etsijä näkee, kuulee juoksun ja osaa kiivetä tikkaita katoille. Lisäksi etsijä saa 30 sekunnin välein tietää, missä kaikki piiloutujat ovat, ja lähtee lähimmän luo – vaihda siis välillä piilopaikkaa. Selviä 4 minuuttia jäämättä kiinni.
 - Kaupunkia kiertää metsä, jossa voi juosta ja piiloutua puiden, pensaiden, kivien ja kaatuneiden runkojen taakse.
-- **Aarrelaatikko** ilmestyy etsinnän aikana satunnaiseen paikkaan. Sen tunnistaa kultaisesta valokeilasta ja hiljaisesta kilkatuksesta. Piiloutuja, joka kävelee laatikon luo, saa siitä satunnaisen apuvälineen. Uusi laatikko ilmestyy 25 sekuntia edellisen avaamisen jälkeen. Tietokoneen piiloutujat hakevat laatikon, jos se on lähellä ja etsijä kaukana.
+- **Aarrelaatikko** ilmestyy etsinnän aikana satunnaiseen paikkaan. Sen tunnistaa kultaisesta valokeilasta ja hiljaisesta kilkatuksesta. Piiloutuja, joka kävelee laatikon luo, saa siitä satunnaisen apuvälineen. Etsijä ei näe laatikkoa. Kun etsijä 30 sekunnin välein saa tietää piiloutujien sijainnit, piiloutujat näkevät samalla hetken kultaisen pylvään laatikon kohdalla seinien läpi. Uusi laatikko ilmestyy 25 sekuntia edellisen avaamisen jälkeen. Tietokoneen piiloutujat hakevat laatikon, jos tietävät siitä (paljastuksen jälkeen tai aivan vierestä) ja etsijä on kaukana.
 
   | Apuväline | Mitä tekee |
   |---|---|

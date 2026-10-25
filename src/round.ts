@@ -132,7 +132,8 @@ export class Round {
       this.hiders.push(brain);
     }
 
-    this.loot = new LootCrates(town.scene, town.spots, base);
+    // Etsijä ei näe aarrelaatikkoa.
+    this.loot = new LootCrates(town.scene, town.spots, base, role === 'hider');
 
     if (role === 'seeker') ctx.player.locked = true;
     else {
@@ -209,7 +210,7 @@ export class Round {
       this.wasChased = chasingMe;
     }
     const sv = this.seekerView;
-    for (const h of this.hiders) h.update(dt, sv, counting, this.loot.pos);
+    for (const h of this.hiders) h.update(dt, sv, counting, this.loot.targetFor(h.agent.pos));
     for (const a of this.agents) a.update(dt, this.ai.world);
     this.updateMarkers(dt);
     if (this.phase === 'seek') this.updateLoot(dt);
@@ -238,11 +239,16 @@ export class Round {
   /** Etsijä saa tietää kaikkien vapaiden piiloutujien sijainnit. */
   private reveal(): void {
     const free = this.hiders.map((h) => h.agent).filter((a) => !a.caught);
+    // Samalla piiloutujat saavat tietää aarrelaatikon paikan.
+    const crate = this.loot.reveal(this.role === 'hider' && !this.me.caught ? REVEAL_SHOW : 0);
     if (this.seeker) {
       if (this.me.caught) return;
       this.seeker.reveal([...free, this.me]);
       sfx.revealed();
-      this.ctx.hud.show([{ text: 'Etsijä tietää, missä kaikki ovat!', size: 56, bold: true, color: '#ff8a5c' }], 2.5);
+      this.ctx.hud.show([
+        { text: 'Etsijä tietää, missä kaikki ovat!', size: 56, bold: true, color: '#ff8a5c' },
+        ...(crate ? [{ text: 'Sinä näet aarrelaatikon – kultainen pylväs!', size: 40, bold: true, color: '#ffd84a' }] : []),
+      ], 3);
     } else if (free.length) {
       for (const a of free) this.addMarker(a, REVEAL_SHOW);
       sfx.revealed();
