@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Agent, HiderBrain, SEEKER_PARAMS, SeekerBrain, type Actor, type AiWorld, type SeekerView } from './ai';
 import type { Outfit } from './character';
 import { sfx } from './audio';
+import { LootCrates, POWERS, type PowerKind } from './crate';
 import type { Hud } from './hud';
 import { padLine } from './text';
 import type { Input } from './input';
@@ -39,9 +40,9 @@ function hiderOutfit(i: number): Outfit {
 
 const SEEKER_OUTFIT: Outfit = { shirt: 0xc0392b, pants: 0x1b2631, skin: 0xf1c27d, hair: 0x3b2a1a, cap: 0xb03024 };
 
-/** Seinien läpi näkyvä valopylväs piiloutujan kohdalla. */
-function revealMarker(): THREE.Mesh {
-  const mat = new THREE.MeshBasicMaterial({ color: 0xff5a3c, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
+/** Seinien läpi näkyvä valopylväs hahmon kohdalla. */
+function revealMarker(color = 0xff5a3c): THREE.Mesh {
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
   const m = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 30, 10, 1, true), mat);
   m.renderOrder = 999;
   m.frustumCulled = false;
@@ -59,6 +60,7 @@ class PlayerActor implements Actor, SeekerView {
   readonly isPlayer = true;
   readonly chasing = null;
   caught = false;
+  invisible = false;
   private readonly _eye = new THREE.Vector3();
 
   constructor(private readonly player: Player, private readonly view: View) {}
@@ -96,8 +98,11 @@ export class Round {
   private lastSec = 0;
   private wasChased = false;
   private revealT = REVEAL_INTERVAL;
-  private readonly markers = new Map<Agent, THREE.Mesh>();
-  private markerT = 0;
+  /** Seinien läpi näkyvät pylväät ja niiden jäljellä oleva aika. */
+  private readonly markers = new Map<Agent, { mesh: THREE.Mesh; t: number }>();
+  private readonly loot: LootCrates;
+  /** Voimassa olevat apuvälineet. */
+  private effects: { actor: Actor; kind: PowerKind; t: number }[] = [];
 
   constructor(private readonly ctx: RoundContext, private readonly town: Town, private readonly role: Role) {
     this.ai = {
@@ -126,6 +131,8 @@ export class Round {
       brain.start();
       this.hiders.push(brain);
     }
+
+    this.loot = new LootCrates(town.scene, town.spots, base);
 
     if (role === 'seeker') ctx.player.locked = true;
     else {
@@ -202,9 +209,10 @@ export class Round {
       this.wasChased = chasingMe;
     }
     const sv = this.seekerView;
-    for (const h of this.hiders) h.update(dt, sv, counting);
+    for (const h of this.hiders) h.update(dt, sv, counting, this.loot.pos);
     for (const a of this.agents) a.update(dt, this.ai.world);
     this.updateMarkers(dt);
+    if (this.phase === 'seek') this.updateLoot(dt);
 
     if (this.phase === 'seek') {
       if (this.role === 'seeker' && this.hiders.every((h) => h.agent.caught)) this.end('allCaught');
@@ -218,6 +226,7 @@ export class Round {
     this.ctx.player.locked = false;
     this.ctx.view.fadeTo(0);
     this.seeker?.startSeeking();
+    this.loot.start(this.actorPositions());
     sfx.go();
     this.ctx.hud.show([
       { text: 'Valmiit tai ei,', size: 50, color: '#cfd6e0' },
@@ -235,27 +244,29 @@ export class Round {
       sfx.revealed();
       this.ctx.hud.show([{ text: 'Etsijä tietää, missä kaikki ovat!', size: 56, bold: true, color: '#ff8a5c' }], 2.5);
     } else if (free.length) {
-      for (const a of free) {
-        const m = revealMarker();
-        this.town.scene.add(m);
-        this.markers.set(a, m);
-      }
-      this.markerT = REVEAL_SHOW;
+      for (const a of free) this.addMarker(a, REVEAL_SHOW);
       sfx.revealed();
       this.ctx.hud.show([{ text: 'Näet nyt, missä kaikki ovat!', size: 56, bold: true, color: '#ffd84a' }], 2.5);
     }
   }
 
+  private addMarker(a: Agent, seconds: number, color?: number): void {
+    const old = this.markers.get(a);
+    if (old) this.removeMarker(a, old.mesh);
+    const mesh = revealMarker(color);
+    this.town.scene.add(mesh);
+    this.markers.set(a, { mesh, t: seconds });
+  }
+
   private updateMarkers(dt: number): void {
-    if (!this.markers.size) return;
-    this.markerT -= dt;
     for (const [a, m] of this.markers) {
-      if (this.markerT <= 0 || a.caught || this.phase === 'end') {
-        this.removeMarker(a, m);
+      m.t -= dt;
+      if (m.t <= 0 || a.caught || this.phase === 'end') {
+        this.removeMarker(a, m.mesh);
         continue;
       }
-      m.position.set(a.pos.x, a.pos.y + 15, a.pos.z);
-      (m.material as THREE.MeshBasicMaterial).opacity = 0.6 * Math.min(1, this.markerT);
+      m.mesh.position.set(a.pos.x, a.pos.y + 15, a.pos.z);
+      (m.mesh.material as THREE.MeshBasicMaterial).opacity = 0.6 * Math.min(1, m.t);
     }
   }
 
@@ -266,6 +277,97 @@ export class Round {
     this.markers.delete(a);
   }
 
+  // ---------- Aarrelaatikko ja apuvälineet ----------
+
+  private updateLoot(dt: number): void {
+    this.loot.update(dt, this.actorPositions());
+    const hiders: Actor[] = [...this.hiders.map((h) => h.agent), ...(this.role === 'hider' ? [this.me] : [])];
+    const finder = this.loot.tryPickup(hiders);
+    if (finder) this.givePower(finder);
+
+    this.effects = this.effects.filter((e) => {
+      e.t -= dt;
+      if (e.t > 0 && !e.actor.caught) return true;
+      this.endPower(e.actor, e.kind);
+      return false;
+    });
+  }
+
+  private givePower(actor: Actor): void {
+    // Tutka hyödyttää vain pelaajaa piiloutujana.
+    const kinds: PowerKind[] = actor.isPlayer ? ['ghost', 'speed', 'decoy', 'radar'] : ['ghost', 'speed', 'decoy'];
+    const kind = kinds[Math.floor(Math.random() * kinds.length)];
+    const power = POWERS[kind];
+    const agent = actor.isPlayer ? null : (actor as Agent);
+    const body = agent ? agent.body : this.ctx.player.body;
+
+    // Sama apuväline uudelleen: aika alkaa alusta.
+    const same = this.effects.find((e) => e.actor === actor && e.kind === kind);
+    if (same) same.t = power.seconds;
+    else if (power.seconds > 0) this.effects.push({ actor, kind, t: power.seconds });
+
+    if (kind === 'ghost') {
+      actor.invisible = true;
+      agent?.char.setGhost(true);
+    } else if (kind === 'speed') {
+      body.speedMul = 1.6;
+    } else if (kind === 'decoy') {
+      this.decoy(actor);
+    } else if (kind === 'radar' && this.seeker) {
+      this.addMarker(this.seeker.agent, power.seconds, 0xffb02e);
+    }
+
+    if (actor.isPlayer) {
+      sfx.crateOpen();
+      this.ctx.hud.show([
+        { text: 'Löysit aarrelaatikon!', size: 46, color: '#cfd6e0' },
+        { text: power.name, size: 80, bold: true, color: '#ffd84a' },
+        { text: power.info + (power.seconds ? ` (${power.seconds} s)` : ''), size: 34 },
+      ], 3.5);
+    } else {
+      sfx.crateOpen();
+      this.ctx.hud.show([{ text: `${actor.name} avasi aarrelaatikon!`, size: 52, bold: true, color: '#ffd84a' }], 2.5);
+    }
+  }
+
+  /** Kierros päättyy: laatikko pois ja apuvälineet pois päältä. */
+  private clearPowers(): void {
+    this.loot.stop();
+    for (const e of this.effects) this.endPower(e.actor, e.kind, true);
+    this.effects = [];
+  }
+
+  private endPower(actor: Actor, kind: PowerKind, quiet = false): void {
+    const agent = actor.isPlayer ? null : (actor as Agent);
+    if (kind === 'ghost') {
+      actor.invisible = false;
+      agent?.char.setGhost(false);
+    } else if (kind === 'speed') {
+      (agent ? agent.body : this.ctx.player.body).speedMul = 1;
+    }
+    if (actor.isPlayer && !actor.caught && !quiet) sfx.powerEnd();
+  }
+
+  /** Hämäysääni kauas löytäjästä: tietokoneen etsijä lähtee sinne, pelaaja-etsijä kuulee sen. */
+  private decoy(from: Actor): void {
+    const far = this.town.spots.filter((s) => {
+      const d = Math.hypot(s.pos.x - from.pos.x, s.pos.z - from.pos.z);
+      return s.pos.y < 1 && d > 30 && d < 70;
+    });
+    const spot = far[Math.floor(Math.random() * far.length)];
+    if (!spot) return;
+    sfx.decoy(spot.pos);
+    this.seeker?.distract(spot.pos);
+  }
+
+  /** Pelaajan voimassa olevat apuvälineet tilariville. */
+  private myPowers(): string {
+    return this.effects
+      .filter((e) => e.actor === this.me)
+      .map((e) => `${POWERS[e.kind].name} ${Math.ceil(e.t)} s`)
+      .join('  ·  ');
+  }
+
   private caughtCount(): number {
     return this.hiders.filter((h) => h.agent.caught).length;
   }
@@ -273,8 +375,11 @@ export class Round {
   private updateStatus(): void {
     const { hud } = this.ctx;
     const caught = `Kiinni ${this.caughtCount()}/${this.hiders.length}`;
+    const powers = this.myPowers();
     if (this.role === 'hider' && this.seeker?.chasing === this.me) {
       hud.setStatus(`${fmt(this.t)}  ·  ETSIJÄ JAHTAA SINUA!`, '#ff6b5c');
+    } else if (powers) {
+      hud.setStatus(`${fmt(this.t)}  ·  ${powers}`, '#ffd84a');
     } else {
       hud.setStatus(`${fmt(this.t)}  ·  ${caught}`);
     }
@@ -316,6 +421,7 @@ export class Round {
 
   private end(reason: 'timeout' | 'allCaught' | 'playerCaught'): void {
     this.phase = 'end';
+    this.clearPowers();
     const { hud } = this.ctx;
     this.ctx.player.locked = true;
     hud.setStatus(null);
@@ -354,7 +460,9 @@ export class Round {
   }
 
   dispose(): void {
-    for (const [a, m] of this.markers) this.removeMarker(a, m);
+    for (const [a, m] of this.markers) this.removeMarker(a, m.mesh);
+    this.clearPowers();
+    this.loot.dispose();
     for (const a of this.agents) a.dispose();
     this.ctx.player.locked = false;
     this.ctx.view.fadeTo(0);

@@ -82,6 +82,18 @@ export class Character {
     }
   }
 
+  /** Näkymättömyys: hahmosta näkyy vain läpikuultava haamu. */
+  setGhost(on: boolean): void {
+    const mat = on ? ghostMaterial() : materials().painted;
+    this.root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) {
+        mesh.material = mat;
+        mesh.castShadow = !on;
+      }
+    });
+  }
+
   /**
    * @param speed vaakanopeus m/s
    * @param crouching kyykyssä
@@ -107,4 +119,11 @@ export class Character {
     // Juostessa pieni pomppu
     this.hips.position.y += Math.abs(Math.cos(this.phase)) * Math.min(speed / 5, 1) * 0.04;
   }
+}
+
+let ghost: THREE.Material | null = null;
+
+function ghostMaterial(): THREE.Material {
+  ghost ??= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, transparent: true, opacity: 0.18, depthWrite: false });
+  return ghost;
 }
