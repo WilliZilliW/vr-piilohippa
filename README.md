@@ -42,8 +42,12 @@ Kun peli pyytää painamaan nappia, kehotteessa näkyy NES30-ohjaimen kuva, joss
 
 ## Pelin kulku
 
-- **Etsijänä** lasket ensin 20 sekuntia silmät kiinni, kun neljä tietokoneen piiloutujaa juoksee piiloon. Sitten etsit: katso piiloutujaa läheltä ja paina A. 30 sekunnin välein näet hetken seinien läpi näkyvät valopylväät kaikkien piiloutujien kohdalla. Löydä kaikki 4 minuutissa.
-- **Piiloutujana** juokset piiloon, kun tietokoneen etsijä laskee pesäpuulla. Etsijä näkee, kuulee juoksun ja osaa kiivetä tikkaita katoille. Lisäksi etsijä saa 30 sekunnin välein tietää, missä kaikki piiloutujat ovat, ja lähtee lähimmän luo – vaihda siis välillä piilopaikkaa. Selviä 4 minuuttia jäämättä kiinni.
+Pelissä on sinä ja neljä tietokoneen hahmoa, joista yksi on etsijä. Aulassa valitset, aloitatko etsijänä vai piiloutujana. Peli kestää 4 minuuttia.
+
+- **Kiinni jäänyt muuttuu etsijäksi.** Aina kun etsijä saa jonkun kiinni, kiinni jäänyt on uusi etsijä ja entisestä etsijästä tulee piiloutuja. Uusi etsijä laskee pesäpuulla 20 sekuntia, ja muut juoksevat piiloon. Peliaika ei nollaudu, eikä se kulu laskennan aikana. Sama sääntö koskee myös tietokoneen hahmoja keskenään.
+- **Etsijänä** lasket silmät kiinni ja etsit sitten: katso piiloutujaa läheltä ja paina A. 30 sekunnin välein näet hetken seinien läpi näkyvät valopylväät kaikkien piiloutujien kohdalla. Etsijän tunnistaa punaisesta paidasta ja lippiksestä.
+- **Piiloutujana** juokset piiloon, kun etsijä laskee. Etsijä näkee, kuulee juoksun ja osaa kiivetä tikkaita katoille. Lisäksi etsijä saa 30 sekunnin välein tietää, missä kaikki piiloutujat ovat, ja lähtee lähimmän luo – vaihda siis välillä piilopaikkaa.
+- **Kun aika loppuu**, voitat, jos olet piiloutuja, ja häviät, jos olet etsijä.
 - Kaupunkia kiertää metsä, jossa voi juosta ja piiloutua puiden, pensaiden, kivien ja kaatuneiden runkojen taakse.
 - **Aarrelaatikko** ilmestyy etsinnän aikana satunnaiseen paikkaan. Sen tunnistaa kultaisesta valokeilasta ja hiljaisesta kilkatuksesta. Piiloutuja, joka kävelee laatikon luo, saa siitä satunnaisen apuvälineen. Etsijä ei näe laatikkoa. Kun etsijä 30 sekunnin välein saa tietää piiloutujien sijainnit, piiloutujat näkevät samalla hetken kultaisen pylvään laatikon kohdalla seinien läpi. Uusi laatikko ilmestyy 25 sekuntia edellisen avaamisen jälkeen. Tietokoneen piiloutujat hakevat laatikon, jos tietävät siitä (paljastuksen jälkeen tai aivan vierestä) ja etsijä on kaukana.
 

@@ -38,7 +38,15 @@ function hiderOutfit(i: number): Outfit {
   return { shirt: SHIRTS[i % SHIRTS.length], pants: PANTS[i % PANTS.length], skin: SKINS[(i * 2) % SKINS.length], hair: HAIRS[(i * 3) % HAIRS.length] };
 }
 
-const SEEKER_OUTFIT: Outfit = { shirt: 0xc0392b, pants: 0x1b2631, skin: 0xf1c27d, hair: 0x3b2a1a, cap: 0xb03024 };
+/** Etsijän tunnistaa punaisesta paidasta ja lippiksestä. */
+const seekerOutfit = (o: Outfit): Outfit => ({ ...o, shirt: 0xc0392b, cap: 0xb03024 });
+
+/** Tietokoneen hahmo: nimi ja vaatteet pysyvät, rooli vaihtuu kiinniotoissa. */
+interface Person {
+  name: string;
+  outfit: Outfit;
+  agent: Agent | null;
+}
 
 /** Seinien läpi näkyvä valopylväs hahmon kohdalla. */
 function revealMarker(color = 0xff5a3c): THREE.Mesh {
@@ -85,14 +93,25 @@ class PlayerActor implements Actor, SeekerView {
   }
 }
 
-/** Yksi piilohippakierros: laskenta → etsintä → tulos. */
+/**
+ * Yksi piilohippakierros. Aina kun etsijä saa jonkun kiinni, kiinni jäänyt
+ * muuttuu etsijäksi ja entisestä etsijästä tulee piiloutuja. Uusi etsijä
+ * laskee pesällä, muut piiloutuvat, ja etsintä jatkuu jäljellä olevalla
+ * ajalla. Kierros päättyy, kun aika loppuu.
+ */
 export class Round {
   phase: 'count' | 'seek' | 'end' = 'count';
   private t = COUNT_TIME;
   private readonly ai: AiWorld;
-  private readonly agents: Agent[] = [];
+  private readonly people: Person[];
   private readonly hiders: HiderBrain[] = [];
-  private readonly seeker: SeekerBrain | null = null;
+  private seeker: SeekerBrain | null = null;
+  /** Etsintäaikaa jäljellä, kun laskenta alkaa kesken kierroksen (roolinvaihto). */
+  private seekLeft: number | null = null;
+  /** Kiinni jäänyt: hänestä tulee etsijä tekoälyn päivityksen jälkeen. */
+  private nextSeeker: Actor | null = null;
+  private myCatches = 0;
+  private timesCaught = 0;
   private readonly me: PlayerActor;
   private readonly positions: THREE.Vector3[] = [];
   private lastSec = 0;
@@ -100,50 +119,94 @@ export class Round {
   private revealT = REVEAL_INTERVAL;
   /** Seinien läpi näkyvät pylväät ja niiden jäljellä oleva aika. */
   private readonly markers = new Map<Agent, { mesh: THREE.Mesh; t: number }>();
-  private readonly loot: LootCrates;
+  private loot!: LootCrates;
   /** Voimassa olevat apuvälineet. */
   private effects: { actor: Actor; kind: PowerKind; t: number }[] = [];
 
-  constructor(private readonly ctx: RoundContext, private readonly town: Town, private readonly role: Role) {
+  constructor(private readonly ctx: RoundContext, private readonly town: Town, private role: Role) {
     this.ai = {
       world: town.world, nav: town.nav, vision: town.vision, spots: town.spots, ladders: town.ladders, base: town.base,
     };
     this.me = new PlayerActor(ctx.player, ctx.view);
-    const base = town.base;
-    const taken = new Set<import('./vision').Spot>();
-    const hiderCount = role === 'seeker' ? 4 : 3;
-    const jail = (i: number) => new THREE.Vector3(base.x + Math.sin(i * 1.3 + 2) * 4.6, base.y, base.z + Math.cos(i * 1.3 + 2) * 4.6);
+    this.people = NAMES.slice(0, 4).map((name, i) => ({ name, outfit: hiderOutfit(i), agent: null }));
+    this.assignRoles(role === 'hider' ? this.people[3] : null, true);
 
     if (role === 'hider') {
-      const agent = new Agent('Etsijä', SEEKER_OUTFIT, this.ai, town.scene, 'seeker');
-      agent.place(base.x, base.y, base.z + 1.8, 0);
-      this.agents.push(agent);
-      const params = SEEKER_PARAMS[ctx.settings.difficulty];
-      this.seeker = new SeekerBrain(agent, this.ai, params, (t) => this.onCaught(t));
-    }
-
-    for (let i = 0; i < hiderCount; i++) {
-      const agent = new Agent(NAMES[i], hiderOutfit(i), this.ai, town.scene, 'hider');
-      const a = Math.PI / 4 + (i / hiderCount) * Math.PI * 2;
-      agent.place(base.x + Math.sin(a) * 2.6, base.y, base.z + Math.cos(a) * 2.6, a);
-      this.agents.push(agent);
-      const brain = new HiderBrain(agent, this.ai, taken, jail(i));
-      brain.start();
-      this.hiders.push(brain);
-    }
-
-    // Etsijä ei näe aarrelaatikkoa.
-    this.loot = new LootCrates(town.scene, town.spots, base, role === 'hider');
-
-    if (role === 'seeker') ctx.player.locked = true;
-    else {
       ctx.hud.show([
         { text: 'Olet PIILOUTUJA', size: 80, bold: true, color: '#7dffa8' },
         { text: 'Juokse piiloon ennen kuin etsijä lopettaa laskemisen', size: 32 },
         { text: 'B = juoksu · X = kyykky · Y = kiipeä · tikkailla katolle', size: 28, color: '#cfd6e0' },
         { text: `Etsijä näkee ${REVEAL_INTERVAL} sekunnin välein, missä kaikki ovat – vaihda piilopaikkaa!`, size: 28, color: '#ffb08a' },
+        { text: 'Jos jäät kiinni, sinusta tulee etsijä', size: 28, color: '#cfd6e0' },
         padLine(['run', 'crouch', 'jump'], 110),
       ], 6);
+    }
+  }
+
+  private get agents(): Agent[] {
+    return this.people.map((p) => p.agent!);
+  }
+
+  /**
+   * Jaa roolit ja aloita laskenta.
+   * @param seeker tietokoneen etsijä, tai null, kun pelaaja on etsijä
+   * @param first kierroksen alku: hahmot asetetaan pesän ympärille
+   */
+  private assignRoles(seeker: Person | null, first: boolean): void {
+    const base = this.town.base;
+    const taken = new Set<import('./vision').Spot>();
+    const jail = (i: number) => new THREE.Vector3(base.x + Math.sin(i * 1.3 + 2) * 4.6, base.y, base.z + Math.cos(i * 1.3 + 2) * 4.6);
+    const hiders = this.people.filter((p) => p !== seeker);
+    this.role = seeker ? 'hider' : 'seeker';
+    this.seeker = null;
+    this.hiders.length = 0;
+
+    for (const p of this.people) {
+      const isSeeker = p === seeker;
+      const kind = isSeeker ? 'seeker' : 'hider';
+      // Rooli vaihtui: uusi hahmo (vaatteet ja askelten ääni) samaan paikkaan.
+      if (!p.agent || p.agent.kind !== kind) {
+        const old = p.agent;
+        p.agent = new Agent(p.name, isSeeker ? seekerOutfit(p.outfit) : p.outfit, this.ai, this.town.scene, kind);
+        if (old) {
+          p.agent.place(old.pos.x, old.pos.y, old.pos.z, old.yaw);
+          old.dispose();
+        }
+      }
+      const a = p.agent;
+      a.caught = false;
+      a.nav.stop();
+      if (isSeeker) {
+        a.place(base.x, base.y, base.z + 1.8, 0);
+        this.seeker = new SeekerBrain(a, this.ai, SEEKER_PARAMS[this.ctx.settings.difficulty], (t) => this.onCaught(t));
+      } else {
+        const k = hiders.indexOf(p);
+        if (first) {
+          const ang = Math.PI / 4 + (k / hiders.length) * Math.PI * 2;
+          a.place(base.x + Math.sin(ang) * 2.6, base.y, base.z + Math.cos(ang) * 2.6, ang);
+        }
+        const brain = new HiderBrain(a, this.ai, taken, jail(k));
+        brain.start();
+        this.hiders.push(brain);
+      }
+    }
+
+    this.me.caught = false;
+    this.wasChased = false;
+    this.revealT = REVEAL_INTERVAL;
+    // Etsijä ei näe aarrelaatikkoa.
+    this.loot?.dispose();
+    this.loot = new LootCrates(this.town.scene, this.town.spots, base, this.role === 'hider');
+
+    this.phase = 'count';
+    this.t = COUNT_TIME;
+    this.lastSec = 0;
+    if (this.role === 'seeker') {
+      if (!first) this.ctx.player.spawn(base.x, base.y, base.z + 2.2, 0);
+      this.ctx.player.locked = true;
+    } else {
+      this.ctx.player.locked = false;
+      this.ctx.view.fadeTo(0);
     }
   }
 
@@ -173,12 +236,13 @@ export class Round {
       if (this.role === 'seeker') {
         this.ctx.view.fadeTo(0.94);
         hud.show([
+          ...(this.seekLeft !== null ? [{ text: 'Jäit kiinni – nyt sinä olet etsijä!', size: 44, bold: true, color: '#ff8a5c' }] : []),
           { text: 'Lasket silmät kiinni', size: 46, color: '#cfd6e0' },
           { text: String(Math.max(1, Math.ceil(this.t))), size: 140, bold: true, color: '#ffd84a' },
         ], Infinity);
         hud.setStatus(null);
       } else {
-        hud.setStatus(`Etsijä laskee: ${Math.max(1, Math.ceil(this.t))} – piiloudu!`, '#7dffa8');
+        hud.setStatus(`${this.seeker?.agent.name} laskee: ${Math.max(1, Math.ceil(this.t))} – piiloudu!`, '#7dffa8');
       }
       if (this.t <= 0) this.startSeeking();
     } else if (this.phase === 'seek') {
@@ -192,7 +256,7 @@ export class Round {
       }
       this.updateStatus();
       if (this.role === 'seeker' && input.justPressed('action')) this.tryCatch();
-      if (this.t <= 0) this.end('timeout');
+      if (this.t <= 0) this.end();
     } else if (input.justPressed('action')) {
       this.ctx.exit();
     }
@@ -215,15 +279,20 @@ export class Round {
     this.updateMarkers(dt);
     if (this.phase === 'seek') this.updateLoot(dt);
 
-    if (this.phase === 'seek') {
-      if (this.role === 'seeker' && this.hiders.every((h) => h.agent.caught)) this.end('allCaught');
-      if (this.role === 'hider' && this.me.caught) this.end('playerCaught');
+    // Kiinni jäänyt muuttuu etsijäksi, entinen etsijä piiloutujaksi.
+    if (this.nextSeeker && this.phase === 'seek') {
+      const caught = this.nextSeeker;
+      this.nextSeeker = null;
+      this.seekLeft = this.t;
+      this.clearPowers();
+      for (const [a, m] of this.markers) this.removeMarker(a, m.mesh);
+      this.assignRoles(caught.isPlayer ? null : this.people.find((p) => p.agent === caught)!, false);
     }
   }
 
   private startSeeking(): void {
     this.phase = 'seek';
-    this.t = SEEK_TIME;
+    this.t = this.seekLeft ?? SEEK_TIME;
     this.ctx.player.locked = false;
     this.ctx.view.fadeTo(0);
     this.seeker?.startSeeking();
@@ -374,20 +443,16 @@ export class Round {
       .join('  ·  ');
   }
 
-  private caughtCount(): number {
-    return this.hiders.filter((h) => h.agent.caught).length;
-  }
-
   private updateStatus(): void {
     const { hud } = this.ctx;
-    const caught = `Kiinni ${this.caughtCount()}/${this.hiders.length}`;
+    const who = this.role === 'seeker' ? 'Olet ETSIJÄ' : `Etsijä: ${this.seeker?.agent.name}`;
     const powers = this.myPowers();
     if (this.role === 'hider' && this.seeker?.chasing === this.me) {
       hud.setStatus(`${fmt(this.t)}  ·  ETSIJÄ JAHTAA SINUA!`, '#ff6b5c');
     } else if (powers) {
       hud.setStatus(`${fmt(this.t)}  ·  ${powers}`, '#ffd84a');
     } else {
-      hud.setStatus(`${fmt(this.t)}  ·  ${caught}`);
+      hud.setStatus(`${fmt(this.t)}  ·  ${who}`);
     }
   }
 
@@ -414,47 +479,49 @@ export class Round {
   }
 
   private onCaught(t: Actor): void {
-    if (t.caught || this.phase !== 'seek') return;
+    if (t.caught || this.phase !== 'seek' || this.nextSeeker) return;
     t.caught = true;
-    if (t.isPlayer) sfx.playerCaught();
-    else if (this.role === 'seeker') sfx.foundHider(t.pos);
-    else sfx.otherCaught(t.pos);
-    if (!t.isPlayer) {
-      const verb = this.role === 'seeker' ? `Löysit: ${t.name}!` : `${t.name} jäi kiinni!`;
-      this.ctx.hud.show([{ text: verb, size: 64, bold: true, color: '#ffd84a' }], 2.5);
+    this.nextSeeker = t;
+    const { hud } = this.ctx;
+    if (t.isPlayer) {
+      sfx.playerCaught();
+      this.timesCaught++;
+    } else if (this.role === 'seeker') {
+      sfx.foundHider(t.pos);
+      this.myCatches++;
+      hud.show([
+        { text: `Löysit: ${t.name}!`, size: 64, bold: true, color: '#ffd84a' },
+        { text: `Nyt ${t.name} on etsijä – juokse piiloon!`, size: 40, bold: true, color: '#7dffa8' },
+      ], 3.5);
+    } else {
+      sfx.otherCaught(t.pos);
+      hud.show([
+        { text: `${t.name} jäi kiinni!`, size: 64, bold: true, color: '#ffd84a' },
+        { text: `Nyt ${t.name} on etsijä – pysy piilossa!`, size: 40, color: '#cfd6e0' },
+      ], 3.5);
     }
   }
 
-  private end(reason: 'timeout' | 'allCaught' | 'playerCaught'): void {
+  /** Aika loppui: se, joka on lopussa etsijä, häviää. */
+  private end(): void {
     this.phase = 'end';
     this.clearPowers();
     const { hud } = this.ctx;
     this.ctx.player.locked = true;
     hud.setStatus(null);
-    const n = this.hiders.length;
-    const k = this.caughtCount();
-    const used = fmt(SEEK_TIME - this.t);
+    const stats = `Sait kiinni ${this.myCatches} · jäit kiinni ${this.timesCaught}`;
     let title: string;
     let sub: string;
     let color: string;
-    if (reason === 'allCaught') {
-      title = 'VOITIT!';
-      sfx.win();
-      sub = `Löysit kaikki ajassa ${used}`;
-      color = '#7dffa8';
-    } else if (reason === 'playerCaught') {
-      title = 'JÄIT KIINNI!';
-      sub = `Etsijä löysi sinut ajassa ${used}`;
-      color = '#ff8a5c';
-    } else if (this.role === 'seeker') {
+    if (this.role === 'seeker') {
       title = 'AIKA LOPPUI';
       sfx.lose();
-      sub = `Löysit ${k} / ${n}`;
+      sub = `Jäit etsijäksi · ${stats}`;
       color = '#ffd84a';
     } else {
       title = 'SELVISIT!';
       sfx.win();
-      sub = `Piiloutujat voittivat · muista kiinni ${k} / ${n}`;
+      sub = `Olit lopussa piilossa · ${stats}`;
       color = '#7dffa8';
     }
     hud.show([

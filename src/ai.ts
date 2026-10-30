@@ -61,7 +61,7 @@ export class Agent implements Actor {
 
   private readonly sounds: MotionSounds;
 
-  constructor(readonly name: string, outfit: Outfit, ai: AiWorld, scene: THREE.Scene, kind: StepKind) {
+  constructor(readonly name: string, outfit: Outfit, ai: AiWorld, scene: THREE.Scene, readonly kind: StepKind) {
     this.sounds = new MotionSounds(kind);
     this.char = new Character(outfit);
     this.nav = new Navigator(ai);
