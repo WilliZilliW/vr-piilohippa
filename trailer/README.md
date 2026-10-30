@@ -10,7 +10,8 @@ käsikirjoituksen mukaan biisin "Piilo-piilo-piilohippa" tahdissa ja tallentaa k
 1. `npm install` (kerran)
 2. `npm run dev:http`
 3. Avaa Chromessa http://localhost:5174/trailer/
-4. Valitse biisi (`Piilo-piilo-piilohippa.mp3`) tiedostovalitsimesta.
+4. Biisi (`trailer/Piilo-piilo-piilohippa.mp3`) latautuu automaattisesti. Toisen biisin voi
+   valita tiedostovalitsimesta.
 5. **▶ Esikatsele** soittaa trailerin valitusta kohdasta ("Aloita kohdasta").
    **● Tallenna video** soittaa koko biisin (2:49) ja lataa lopuksi tiedoston
    `piilohippa-traileri.webm`. Pidä välilehti näkyvissä tallennuksen ajan.
@@ -24,6 +25,7 @@ WebM toimii YouTubessa ja useimmissa soittimissa. MP4:ksi sen saa esim. komennol
 
 ## Tiedostot
 
+- `Piilo-piilo-piilohippa.mp3` – trailerin biisi (tehty Sunolla).
 - `shots.ts` – käsikirjoitus: biisin rakenne, otokset (kamera-ajot ja tapahtumat) ja tekstit.
   Ajat on merkitty tahteina: `bar(k)` = tahdin k alku (n. 148 BPM, tahti 1,625 s).
 - `trailer.ts` – kuvausmoottori: simulaatio, kamera, tekstien piirto, toisto ja tallennus.

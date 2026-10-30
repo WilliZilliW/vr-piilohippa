@@ -142,6 +142,18 @@ let audioBuf: AudioBuffer | null = null;
 const actx = new AudioContext();
 let running = false;
 
+// Biisi ladataan repon kansiosta; tiedostovalitsimella voi vaihtaa toiseen.
+void (async () => {
+  try {
+    const res = await fetch('./Piilo-piilo-piilohippa.mp3');
+    if (!res.ok) throw new Error(String(res.status));
+    audioBuf = await actx.decodeAudioData(await res.arrayBuffer());
+    status.textContent = `Biisi valmis (${audioBuf.duration.toFixed(1)} s).`;
+  } catch {
+    status.textContent = 'Valitse biisi.';
+  }
+})();
+
 (document.getElementById('song') as HTMLInputElement).addEventListener('change', async (e) => {
   const f = (e.target as HTMLInputElement).files?.[0];
   if (!f) return;
