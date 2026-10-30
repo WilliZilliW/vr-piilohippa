@@ -99,7 +99,8 @@ function shotAt(t: number): number {
 }
 
 let lastShot = -1;
-function render(t: number): void {
+/** Asettaa kameran hetkeen t. Pehmennys olettaa kutsun 60 kertaa sekunnissa. */
+function aim(t: number): Shot {
   const i = shotAt(t);
   const shot: Shot = SHOTS[i];
   const u = THREE.MathUtils.clamp((t - shot.start) / (shot.end - shot.start), 0, 1);
@@ -120,7 +121,11 @@ function render(t: number): void {
   cam.position.copy(camPos);
   cam.up.set(Math.sin(c.roll ?? 0), Math.cos(c.roll ?? 0), 0);
   cam.lookAt(camLook);
+  return shot;
+}
 
+function render(t: number): void {
+  const shot = aim(t);
   const scene = shot.scene === 'lobby' ? world.lobby.scene : world.town.scene;
   if (shot.scene !== 'lobby') (world.town as any).outdoor.follow(camLook);
   const r = view.renderer;
@@ -225,6 +230,93 @@ async function run(record: boolean): Promise<void> {
   }
 }
 
+// ---------- Renderöinti ruutu kerrallaan ----------
+
+const FPS = 30;
+
+/**
+ * Piirtää jokaisen ruudun tasan 1/30 s välein riippumatta siitä, kuinka hitaasti kone
+ * piirtää, ja koodaa ne H.264:ksi (WebCodecs, Annex B). Tuloksena raaka .h264-tiedosto
+ * ilman ääntä; ffmpeg yhdistää siihen biisin (ks. README).
+ */
+async function renderFrames(from = 0, to = SONG_LENGTH): Promise<void> {
+  if (typeof VideoEncoder === 'undefined') {
+    status.textContent = 'Selain ei tue WebCodecsia. Käytä Chromea.';
+    return;
+  }
+  const base = { width: out.width, height: out.height, bitrate: 24_000_000, framerate: FPS, avc: { format: 'annexb' as const } };
+  let config: VideoEncoderConfig | null = null;
+  for (const codec of ['avc1.640033', 'avc1.4d0033', 'avc1.42e033']) {
+    for (const hardwareAcceleration of ['prefer-hardware', 'prefer-software'] as const) {
+      const c = { ...base, codec, hardwareAcceleration };
+      if ((await VideoEncoder.isConfigSupported(c)).supported) {
+        config = c;
+        break;
+      }
+    }
+    if (config) break;
+  }
+  if (!config) {
+    status.textContent = 'H.264-koodausta ei tueta tässä selaimessa.';
+    return;
+  }
+
+  const chunks: ArrayBuffer[] = [];
+  let failure: unknown = null;
+  const encoder = new VideoEncoder({
+    output: (chunk) => {
+      const buf = new ArrayBuffer(chunk.byteLength);
+      chunk.copyTo(buf);
+      chunks.push(buf);
+    },
+    error: (e) => (failure = e),
+  });
+  encoder.configure(config);
+
+  status.textContent = 'Valmistellaan…';
+  await new Promise((r) => setTimeout(r, 30));
+  setup();
+  simulateTo(from);
+  aim(from);
+  running = true;
+  const frames = Math.floor((to - from) * FPS);
+  const started = performance.now();
+  for (let f = 0; f < frames && running && !failure; f++) {
+    const t = from + f / FPS;
+    simulateTo(t);
+    // Kamera päivittyy 60 Hz:n tahdissa kuten esikatselussa, kuva piirretään 30 Hz.
+    if (f > 0) aim(t - 1 / 60);
+    render(t);
+    const frame = new VideoFrame(out, { timestamp: Math.round((f * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
+    encoder.encode(frame, { keyFrame: f % (FPS * 2) === 0 });
+    frame.close();
+    while (encoder.encodeQueueSize > 4) await new Promise((r) => encoder.addEventListener('dequeue', r, { once: true }));
+    if (f % FPS === 0) {
+      const left = ((performance.now() - started) / (f + 1)) * (frames - f - 1);
+      status.textContent = `Renderöidään ${(t).toFixed(0)} / ${to.toFixed(0)} s (noin ${Math.ceil(left / 60000)} min jäljellä)`;
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+  const cancelled = !running;
+  running = false;
+  await encoder.flush().catch((e) => (failure ??= e));
+  encoder.close();
+  if (failure) {
+    status.textContent = `Koodaus epäonnistui: ${failure}`;
+    return;
+  }
+  if (cancelled) {
+    status.textContent = 'Renderöinti keskeytettiin.';
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/h264' }));
+  a.download = 'piilohippa-traileri.h264';
+  a.click();
+  status.textContent = 'Valmis: piilohippa-traileri.h264 ladattiin. Yhdistä ääni ffmpegillä (README).';
+}
+
+document.getElementById('render')!.addEventListener('click', () => void renderFrames());
 document.getElementById('play')!.addEventListener('click', () => void run(false));
 document.getElementById('rec')!.addEventListener('click', () => void run(true));
 window.addEventListener('keydown', (e) => {
@@ -239,6 +331,7 @@ window.addEventListener('keydown', (e) => {
     render(t);
     return out.toDataURL('image/jpeg', 0.85);
   },
+  renderFrames,
   shots: SHOTS,
   world: () => world,
 };
