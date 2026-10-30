@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Piilohippa-traileri</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; }
+      #out { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; aspect-ratio: 16 / 9; background: #000; }
+      #panel {
+        position: fixed; left: 16px; top: 16px; z-index: 2; background: #000c; border: 1px solid #fff3;
+        border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; max-width: 360px; font-size: 14px;
+      }
+      #panel.hidden { display: none; }
+      #panel button { font-size: 15px; padding: 8px 12px; border-radius: 8px; border: 0; cursor: pointer; font-weight: 600; }
+      #rec { background: #ff5a3c; color: #fff; }
+      #play { background: #ffd84a; color: #222; }
+      #status { opacity: .8; }
+      label { display: flex; gap: 6px; align-items: center; }
+      input[type=number] { width: 70px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="out" width="1920" height="1080"></canvas>
+    <div id="panel">
+      <strong>Piilohippa-traileri</strong>
+      <label>Biisi (mp3): <input id="song" type="file" accept="audio/*" /></label>
+      <label>Aloita kohdasta (s): <input id="from" type="number" value="0" min="0" step="1" /></label>
+      <button id="play">▶ Esikatsele</button>
+      <button id="rec">● Tallenna video (koko biisi)</button>
+      <div id="status">Valitse ensin biisi.</div>
+      <div style="opacity:.6">Esc pysäyttää. Paneeli piiloutuu toiston ajaksi.</div>
+    </div>
+    <script type="module" src="./trailer.ts"></script>
+  </body>
+</html>
