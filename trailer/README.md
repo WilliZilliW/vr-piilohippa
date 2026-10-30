@@ -24,9 +24,13 @@ Jos kuva pätkii, sulje muut ohjelmat tai pienennä kuvaa: `?scale=0.75` (1440×
 
 **■ Renderöi video** piirtää ruudun kerrallaan tasan 30 kuvaa sekunnissa, vaikka kone olisi
 hidas, ja lataa lopuksi tiedoston `piilohippa-traileri.h264` (kuva ilman ääntä). Edistyminen
-ja arvioitu jäljellä oleva aika näkyvät paneelissa. Biisi yhdistetään ffmpegillä:
+ja arvioitu jäljellä oleva aika näkyvät paneelissa. Biisi yhdistetään ffmpegillä kahdessa
+vaiheessa (yhdellä komennolla ffmpeg pudottaa ääniraidan raa'an H.264:n rinnalta):
 
-`ffmpeg -r 30 -i piilohippa-traileri.h264 -i trailer/Piilo-piilo-piilohippa.mp3 -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart piilohippa-traileri.mp4`
+```
+ffmpeg -r 30 -i piilohippa-traileri.h264 -c copy kuva.mp4
+ffmpeg -i kuva.mp4 -i trailer/Piilo-piilo-piilohippa.mp3 -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -movflags +faststart piilohippa-traileri.mp4
+```
 
 WebM toimii YouTubessa ja useimmissa soittimissa. MP4:ksi sen saa esim. komennolla
 `ffmpeg -i piilohippa-traileri.webm -c:v libx264 -crf 18 -c:a aac -b:a 192k piilohippa-traileri.mp4`.
